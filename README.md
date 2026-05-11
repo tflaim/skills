@@ -27,6 +27,14 @@ Or copy a single skill into your agent's skills directory. For Claude Code this 
 cp -r skills/baton ~/.claude/skills/baton
 ```
 
+## Security note
+
+Skills are instructions to an AI agent that has tool access. A SKILL.md you install can shape what your agent reads, writes, executes, or fetches.
+
+The skills here are the ones I use myself, but you should review the SKILL.md of anything you install before pointing your agent at it. This applies to skills in this repo and any third-party skills you find elsewhere.
+
+If you spot a security concern with anything in this repo, see [SECURITY.md](./SECURITY.md).
+
 ## Skills
 
 | Skill | What it does |
