@@ -1,6 +1,5 @@
 ---
 name: skill-grinder
-model: opus
 description: "Autonomous mutation loop that optimizes an existing skill's prompt by running it repeatedly, scoring outputs against binary evals (at least one mechanically verifiable), mutating one thing at a time, and keeping only improvements. NOT for creating skills (use skill-creator), NOT for one-off eval runs (use skill-creator). Use when: grind this skill, skill-grinder, run the grinder on this skill, mutation loop on this skill, grind loop. Outputs: an improved SKILL.md, a results.tsv log, and a changelog of every mutation tried."
 ---
 

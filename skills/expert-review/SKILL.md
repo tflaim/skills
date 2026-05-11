@@ -1,6 +1,5 @@
 ---
 name: expert-review
-allowed-tools: Read, Grep, Glob, Agent
 description: >-
   Invoke a domain expert persona to critically review specs, code, architecture, copy,
   plans, or prompts. Supports user-specified, auto-selected, or multi-persona modes.

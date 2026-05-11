@@ -1,7 +1,5 @@
 ---
 name: explain-system
-model: opus
-allowed-tools: Read, Grep, Glob, Agent, Bash(git log *), Bash(git show *), Bash(git blame *)
 description: Use when the user wants to genuinely understand how a technical system works, not just get a quick answer. Triggers on "explain this system", "how does X work", "I need to understand X", "walk me through the architecture", "help me understand this codebase", or when preparing for a technical discussion about an unfamiliar system.
 ---
 
