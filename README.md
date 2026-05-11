@@ -1,10 +1,8 @@
 # Skills
 
-Composable skills for AI coding agents. Each one solves a specific failure mode I kept hitting: text that sounds AI-generated, system understanding that stays surface-level, reviews that pull punches, ideas built before being stress-tested, handoffs that lose state between sessions, and skills that work 70% of the time when they should work every time.
+Composable skills for AI coding agents. Each one solves a specific failure mode I kept hitting: text that sounds AI-generated, system understanding that stays surface-level, reviews that pull punches, ideas built before being stress-tested, handoffs that lose state between sessions, and skills that work 70% of the time when they should work every time. ⚓👨
 
-All five published non-grinder skills have been refined through skill-grinder cycles (autonomous mutation loops with binary evals and holdout validation). Results: deslop 80.8% to 100%, expert-review 92% to 100%, explain-system 92% to 100%, vet-idea 83.3% to 96.7%, baton 50% to 100%. Zero overfitting across all holdout checks.
-
-Every skill is SKILL.md-format and runs on any agent that supports the standard: Claude Code, Codex, Cursor, Aider, Cline, and others.
+Every skill is SKILL.md-format and runs on any agent that supports the standard: Claude Code, Codex, Cursor, and others.
 
 ## Installation
 
