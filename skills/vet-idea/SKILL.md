@@ -24,7 +24,7 @@ The user has a direction. Your job is to find the holes in it.
 
 Read any provided context — files referenced with @, inline descriptions, existing SPEC.md files.
 
-**If an existing SPEC.md is found**, use AskUserQuestion to ask: "I see an existing SPEC.md — revise it or start fresh?"
+**If an existing SPEC.md is found**, ask via structured-choice: "I see an existing SPEC.md, revise it or start fresh?"
 
 **Adapt your starting depth:**
 - **One-sentence idea**: Start from scratch. You know almost nothing.
@@ -35,7 +35,7 @@ Acknowledge what you understand in 2-3 sentences, then move to mode selection.
 
 ## Step 2: Mode Selection
 
-Your first AskUserQuestion call is always mode selection:
+Your first structured-choice question is always mode selection:
 
 | Mode | Rounds | Best for |
 |------|--------|----------|
@@ -46,7 +46,15 @@ Default to recommending Quick. The user opts into depth.
 
 ## Step 3: Interview
 
-Use **AskUserQuestion exclusively** for all questions. Never ask questions as plain text.
+### Question Format
+
+All questions in this interview must be **structured-choice**: present discrete options the user can compare side-by-side, not open-ended prose. Open prose invites long meandering answers; structured choices force a quick, high-signal pick.
+
+**Platform adaptation:**
+- **In Claude Code:** use the `AskUserQuestion` tool. It renders options as a picker UI with built-in "Other" support and is the right primitive for every question in this interview.
+- **In agents without a structured-choice tool** (Codex, Cursor, Aider, Cline, etc.): present numbered options inline as plain text. Include an explicit "Other (please describe)" option so the user can break out of the choice set. Wait for a numbered pick or freeform answer before proceeding to the next question.
+
+The remaining rules in this section (batching, challenger option, recommendation, freeform signal) apply regardless of platform.
 
 ### Batching — Adaptive
 
@@ -79,13 +87,13 @@ If the answer is obvious (e.g., "Should the system handle errors?" — of course
 
 ### Challenger Option — Required
 
-Every AskUserQuestion call must include at least one option that **challenges the user's likely assumption** or suggests an approach they probably haven't considered. This is what separates validation from confirmation bias.
+Every structured-choice question must include at least one option that **challenges the user's likely assumption** or suggests an approach they probably haven't considered. This is what separates validation from confirmation bias.
 
 The challenger option doesn't have to be contrarian for its own sake — it should represent a genuinely different approach that an experienced practitioner might advocate for.
 
 ### Recommendation — Required
 
-For every AskUserQuestion call, mark one option with "(Recommended)" and place it first (per the AskUserQuestion tool convention). Never ask a fully-neutral question.
+For every structured-choice question, mark one option with "(Recommended)" and place it first. Never ask a fully-neutral question.
 
 Neutral questions get shallow answers; a stated recommendation lets the user accept your reasoning quickly or push back on it — both produce higher signal than "what do you think?"
 
@@ -95,9 +103,9 @@ If you genuinely don't have a view (tradeoff is true user preference), say so in
 
 ### Freeform Signal Weighting
 
-When the user selects `Other` or adds notes to their answer, that text is **higher-signal** than a standard option click. They went out of their way to express something the options didn't capture. That nuance must make it into the spec — use their words directly or near-verbatim.
+When the user gives a freeform answer (selects `Other`, adds notes, or types custom text instead of picking a numbered option), that text is **higher-signal** than a standard option pick. They went out of their way to express something the options didn't capture. That nuance must make it into the spec, use their words directly or near-verbatim.
 
-For complex questions, actively warm up the Other option: include in the question text something like "Feel free to use Other to add nuance — these options are starting points."
+For complex questions, actively invite freeform input: include in the question text something like "These options are starting points, feel free to add nuance with Other or a custom answer."
 
 ### Reference File Prompting
 
@@ -105,13 +113,13 @@ At least once during the interview (ideally in the first few rounds), ask whethe
 
 ### Scope Creep Detection
 
-If the user's answers reveal the feature is growing significantly beyond the initial description, pause and flag it via AskUserQuestion:
+If the user's answers reveal the feature is growing significantly beyond the initial description, pause and flag it via a structured-choice question:
 - "This is expanding beyond the original scope. Should we narrow to an MVP, or capture the full vision?"
 - Present the tradeoff: smaller scope = faster execution but may miss important pieces; full scope = comprehensive but may be too large for a single session.
 
 ### Checkpoint Summaries — Every ~5 Rounds
 
-After approximately every 5 rounds, output a **passive text summary** of what's been captured so far. Do NOT turn this into an AskUserQuestion — just print it. The user reads it and the interview continues. If they see something wrong, they'll say so.
+After approximately every 5 rounds, output a **passive text summary** of what's been captured so far. Do NOT turn this into a question, just print it. The user reads it and the interview continues. If they see something wrong, they'll say so.
 
 Format:
 ```
@@ -124,7 +132,7 @@ Format:
 ---
 ```
 
-Reserve the AskUserQuestion checkpoint for the **final** "anything else before I write?" moment only.
+Reserve the structured-choice checkpoint for the **final** "anything else before I write?" moment only.
 
 ### Uncertainty Handling
 
@@ -135,7 +143,7 @@ When the user doesn't know the answer to something important: **don't push for a
 **Quick mode**: Aim for 8-12 rounds. Flag anything you couldn't reach as Open Questions.
 **Deep mode**: Continue until coverage is thorough and returns are diminishing. No artificial cap.
 
-In both modes, end with a final AskUserQuestion: "I think I have a solid picture. Before I write the spec, is there anything else you're worried about or want to make sure we capture?"
+In both modes, end with a final structured-choice question: "I think I have a solid picture. Before I write the spec, is there anything else you're worried about or want to make sure we capture?"
 
 ### Early Termination
 
