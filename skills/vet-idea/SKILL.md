@@ -85,6 +85,14 @@ Before every question, evaluate: **"Would the user learn something from seeing t
 
 If the answer is obvious (e.g., "Should the system handle errors?" — of course it should), reformulate to surface a genuine tradeoff (e.g., "When the upstream API times out, should the system retry silently, surface the error to the user, or fall back to cached data?").
 
+### Codebase Exploration Before Asking
+
+If a question can be answered by reading the codebase, explore first and ask second. Don't make the user answer questions you can resolve yourself.
+
+**Pattern:** before asking "does the codebase already have X?", "how is Y currently handled?", "what file does Z live in?", or "is there an existing pattern for W?", use Read/Grep/Glob (or your agent's equivalent file-exploration tools) to check. If you find the answer, incorporate it into the spec without asking. If you don't, ask.
+
+Reserve user questions for things only the user knows: intent, priorities, tradeoffs, constraints, preferences, business context. Resolve everything else yourself before consuming user attention.
+
 ### Challenger Option — Required
 
 Every structured-choice question must include at least one option that **challenges the user's likely assumption** or suggests an approach they probably haven't considered. This is what separates validation from confirmation bias.
