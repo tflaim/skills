@@ -1,8 +1,6 @@
 # Skills
 
-Composable skills for AI coding agents. Each one solves a specific failure mode I kept hitting: text that sounds AI-generated, system understanding that stays surface-level, reviews that pull punches, ideas built before being stress-tested, handoffs that lose state between sessions, and skills that work 70% of the time when they should work every time. ⚓👨
-
-Every skill is SKILL.md-format and runs on any agent that supports the standard: Claude Code, Codex, Cursor, and others.
+Composable skills for AI coding agents that I use daily. Each one solving specific friction points I kept hitting. Every skill is SKILL.md-format and runs on any agent that supports the standard: Claude Code, Codex, Cursor, and others.
 
 ## Installation
 
