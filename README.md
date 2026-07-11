@@ -35,12 +35,35 @@ The skills here are the ones I use myself, but you should review the SKILL.md of
 
 | Skill | What it does |
 |-------|-------------|
+| [animation-vocabulary](#the-design-engineering-suite) | Turn a vague description of a motion effect into its exact term |
+| [apple-design](#the-design-engineering-suite) | Apple's fluid-interface and design principles, translated for the web |
 | [baton](#baton) | Hand off a state-transfer document to a fresh agent session |
 | [deslop](#deslop) | Strip AI writing patterns and inject human voice |
+| [emil-design-eng](#the-design-engineering-suite) | Design-engineering craft: animation decisions, easing, springs, polish |
 | [expert-review](#expert-review) | Invoke a domain expert persona for genuinely critical feedback |
 | [explain-system](#explain-system) | Build mental models of technical systems you can reason with |
+| [improve-animations](#the-design-engineering-suite) | Audit a codebase's motion, produce prioritized self-contained fix plans |
+| [review-animations](#the-design-engineering-suite) | Strict craft-bar review of animation and motion code |
 | [skill-grinder](#skill-grinder) | Autonomous prompt optimization via binary evals and mutation loops |
 | [vet-idea](#vet-idea) | Stress-test ideas through rigorous questioning, produce execution-ready specs |
+
+---
+
+### The design engineering suite
+
+Five skills recreated from [emilkowalski/skills](https://github.com/emilkowalski/skills) (MIT, © Emil Kowalski), distilling his [animations.dev](https://animations.dev/) design-engineering philosophy. Together they cover build, review, audit, naming, and the Apple motion canon:
+
+- **emil-design-eng** — the main knowledge base: the animation decision framework (should it animate → purpose → easing → duration), strong custom curves, springs, press feedback, origin-aware popovers, clip-path techniques, gesture physics, GPU performance rules, and the Sonner component-building lessons. Invoke while building or polishing UI.
+- **review-animations** — a strict reviewer for motion diffs. Ten non-negotiable standards, hard escalation triggers (`transition: all`, `ease-in` on UI, `scale(0)`, keyframes on rapidly-triggered elements), a remedial hierarchy that prefers deleting animation over decorating it, and a required Before/After/Why findings table ending in Block or Approve. Ships a STANDARDS.md with the exact curves, duration budgets, and spring configs to cite.
+- **improve-animations** — the audit-then-plan advisor. Read-only recon of a codebase's motion surface, an eight-category audit (fan-out subagents on big repos), vetted findings ordered by leverage, then self-contained implementation plans under `plans/` that a zero-context executor can run. Ships AUDIT.md (the category playbook) and PLAN-TEMPLATE.md.
+- **animation-vocabulary** — a reverse-lookup glossary: describe the effect ("the iOS rubber-band scroll"), get the term (*Rubber-banding*), so you can prompt AIs and brief designers with the right words.
+- **apple-design** — Apple's WWDC design canon translated for the web: interruptible springs (damping/response values Apple actually ships), velocity handoff, momentum projection, rubber-banding, translucent materials, UI typography, and the eight design principles.
+
+**When to use:**
+- Building or polishing any UI with motion (`emil-design-eng`, `apple-design`)
+- Reviewing an animation diff before merge (`review-animations`)
+- "Make this app feel better" across a whole codebase (`improve-animations`)
+- "What's it called when..." (`animation-vocabulary`)
 
 ---
 
@@ -157,4 +180,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT. The `deslop` skill carries its own MIT license with attribution to [blader/humanizer](https://github.com/blader/humanizer) for patterns 1-24.
+MIT. The `deslop` skill carries its own MIT license with attribution to [blader/humanizer](https://github.com/blader/humanizer) for patterns 1-24. The design engineering suite (`emil-design-eng`, `review-animations`, `improve-animations`, `animation-vocabulary`, `apple-design`) is recreated from [emilkowalski/skills](https://github.com/emilkowalski/skills) (MIT, © Emil Kowalski).
