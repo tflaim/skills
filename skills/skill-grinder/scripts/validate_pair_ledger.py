@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 from collections import Counter
 from pathlib import Path
 
@@ -51,6 +52,17 @@ def load_decision_contract(path: Path) -> dict[str, object]:
     cap = contract.get("allowed_resample_count")
     if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
         fail(f"decision contract allowed_resample_count must be a nonnegative integer: {path}")
+    for field in ("optimization_gate", "validation_gate", "noise_band_calculation"):
+        if not isinstance(contract.get(field), dict) or not contract[field]:
+            fail(f"decision contract {field} must be a nonempty object: {path}")
+    checks = contract.get("mandatory_checks")
+    if not isinstance(checks, list) or not checks or any(not isinstance(item, str) or not item.strip() for item in checks):
+        fail(f"decision contract mandatory_checks must be a nonempty string list: {path}")
+    threshold = contract.get("material_regression_threshold")
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not math.isfinite(float(threshold)) or threshold < 0:
+        fail(f"decision contract material_regression_threshold must be a finite nonnegative number: {path}")
+    if not isinstance(contract.get("disagreement_rule"), str) or not contract["disagreement_rule"].strip():
+        fail(f"decision contract disagreement_rule must be a nonempty string: {path}")
     return contract
 
 
@@ -103,7 +115,7 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
     assert isinstance(inputs, dict) and isinstance(criteria, dict)
     input_hashes: dict[str, str] = {}
     for input_id, definition in inputs.items():
-        if not isinstance(definition, dict) or definition.get("split") not in {"optimization", "validation"}:
+        if not isinstance(definition, dict) or definition.get("split") not in {"optimization", "validation"} or len(definition) < 2:
             fail(f"decision contract input {input_id} must declare optimization or validation split")
         input_hashes[input_id] = payload_sha256(definition)
     criterion_hashes: dict[str, str] = {}
@@ -113,6 +125,12 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
         applicable = definition["applicable_inputs"]
         if not applicable or any(item not in inputs for item in applicable) or len(applicable) != len(set(applicable)):
             fail(f"decision contract criterion {criterion} has invalid applicable_inputs")
+        for field in ("question", "pass", "fail", "applicability"):
+            if not isinstance(definition.get(field), str) or not definition[field].strip():
+                fail(f"decision contract criterion {criterion} requires nonempty {field}")
+        verification = definition.get("verification")
+        if not isinstance(verification, (str, dict)) or not verification:
+            fail(f"decision contract criterion {criterion} requires verification")
         criterion_hashes[criterion] = payload_sha256(definition)
     for input_id in inputs:
         if not any(input_id in definition["applicable_inputs"] for definition in criteria.values()):
@@ -240,6 +258,7 @@ def main() -> None:
     resample_rows = read_tsv(args.resample_ledger, RESAMPLE_HEADER, allow_empty=True)
     seen_resamples: set[tuple[int, int, str, str, str, int, str, str]] = set()
     resample_batches: set[tuple[int, int]] = set()
+    resample_pairs: dict[tuple[int, int], set[tuple[str, str, str, int, str, str]]] = {}
     for row in resample_rows:
         experiment = positive_int(row["experiment"], "experiment", args.resample_ledger)
         batch = positive_int(row["resample_batch"], "resample_batch", args.resample_ledger)
@@ -257,6 +276,7 @@ def main() -> None:
             fail(f"duplicate resample ledger key: {key}")
         seen_resamples.add(key)
         resample_batches.add((experiment, batch))
+        resample_pairs.setdefault((experiment, batch), set()).add(pair)
 
     resample_cap = int(contract["allowed_resample_count"])
     for experiment in sorted({experiment for experiment, _ in resample_batches}):
@@ -269,6 +289,17 @@ def main() -> None:
                 f"resample batches for experiment {experiment} exceed decision-contract cap "
                 f"{resample_cap}: {batches}"
             )
+    for batch_key, actual_pairs in sorted(resample_pairs.items()):
+        groups = {(pair[0], pair[1], pair[2], pair[4], pair[5]) for pair in actual_pairs}
+        required_pairs = {
+            pair for pair in expected
+            if (pair[0], pair[1], pair[2], pair[4], pair[5]) in groups
+        }
+        if actual_pairs != required_pairs:
+            fail(json.dumps({
+                "incomplete_resample_batch": list(batch_key),
+                "missing": sorted(required_pairs - actual_pairs),
+            }, sort_keys=True))
 
     selected = by_experiment[args.experiment]
     verdicts = Counter(row["verdict"] for row in selected)

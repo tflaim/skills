@@ -76,30 +76,42 @@ class PairLedgerTests(unittest.TestCase):
             check=False,
         )
 
-    def write_contract(self, *, resample_cap: int = 1, input_ids: tuple[str, ...] = ("case-1",)) -> None:
+    def write_contract(
+        self, *, resample_cap: int = 1, samples: int = 1,
+        input_ids: tuple[str, ...] = ("case-1",), omit: str | None = None,
+    ) -> None:
         self.criterion_body["applicable_inputs"] = list(input_ids)
-        self.contract.write_text(json.dumps({
+        contract = {
             "allowed_resample_count": resample_cap,
-            "samples_per_input": 1,
+            "samples_per_input": samples,
             "inputs": {input_id: self.input_bodies[input_id] for input_id in input_ids},
             "criteria": {"quality": self.criterion_body},
-        }), encoding="utf-8")
+            "optimization_gate": {"minimum_better": 1},
+            "validation_gate": {"maximum_worse": 0},
+            "mandatory_checks": ["mechanical-check"],
+            "material_regression_threshold": 0,
+            "noise_band_calculation": {"method": "baseline disagreement"},
+            "disagreement_rule": "require repeated evidence outside noise",
+        }
+        contract.pop(omit, None)
+        self.contract.write_text(json.dumps(contract), encoding="utf-8")
 
-    def pair_fields(self, input_id: str = "case-1") -> str:
+    def pair_fields(self, input_id: str = "case-1", sample: int = 1) -> str:
         input_body = self.input_bodies[input_id.strip()]
         return (
-            f"{input_body['split']}\t{input_id}\t{payload_sha256(input_body)}\t1\tquality\t"
+            f"{input_body['split']}\t{input_id}\t{payload_sha256(input_body)}\t{sample}\tquality\t"
             f"{payload_sha256(self.criterion_body)}"
         )
 
-    def write_single_pair(self, input_id: str = "case-1", experiment: int = 1) -> None:
+    def write_single_pair(self, input_id: str = "case-1", experiment: int = 1, samples: int = 1) -> None:
         self.manifest.write_text(
-            MANIFEST_HEADER + self.pair_fields(input_id) + "\n",
+            MANIFEST_HEADER + "".join(self.pair_fields(input_id, sample) + "\n" for sample in range(1, samples + 1)),
             encoding="utf-8",
         )
         rows = [
-            f"{number}\t{self.pair_fields(input_id)}\tSAME\tmatched\n"
+            f"{number}\t{self.pair_fields(input_id, sample)}\tSAME\tmatched\n"
             for number in range(1, experiment + 1)
+            for sample in range(1, samples + 1)
         ]
         self.ledger.write_text(LEDGER_HEADER + "".join(rows), encoding="utf-8")
 
@@ -213,6 +225,33 @@ class PairLedgerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("decision-contract.sha256", result.stderr)
         self.assertIn("differs from frozen commitment", result.stderr)
+
+    def test_rejects_missing_required_contract_fields(self) -> None:
+        required = (
+            "optimization_gate", "validation_gate", "mandatory_checks",
+            "material_regression_threshold", "noise_band_calculation", "disagreement_rule",
+        )
+        for field in required:
+            with self.subTest(field=field):
+                self.write_contract(omit=field)
+                self.write_single_pair()
+                result = self.run_validator(commit=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(field, result.stderr)
+
+    def test_rejects_partial_resample_batch(self) -> None:
+        self.write_contract(samples=2)
+        self.write_single_pair(samples=2)
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.resample_ledger.write_text(
+            RESAMPLE_HEADER + f"1\t1\t{self.pair_fields(sample=1)}\tBETTER\tpartial\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_validator(1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("incomplete_resample_batch", result.stderr)
 
     def test_rejects_missing_trailing_column_without_traceback(self) -> None:
         self.write_single_pair()
