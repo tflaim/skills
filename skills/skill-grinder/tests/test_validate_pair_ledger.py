@@ -27,13 +27,18 @@ class PairLedgerTests(unittest.TestCase):
         self.manifest = self.root / "pair-manifest.tsv"
         self.commitment = self.root / "pair-manifest.sha256"
         self.contract = self.root / "decision-contract.json"
+        self.contract_commitment = self.root / "decision-contract.sha256"
         self.ledger = self.root / "pair-ledger.tsv"
         self.resample_ledger = self.root / "resample-ledger.tsv"
         self.resample_ledger.write_text(RESAMPLE_HEADER, encoding="utf-8")
-        self.input_body = {"prompt": "case prompt"}
+        self.input_bodies = {
+            "case-1": {"split": "optimization", "prompt": "case prompt"},
+            "case-2": {"split": "optimization", "prompt": "other prompt"},
+        }
         self.criterion_body = {
             "question": "Did it work?", "pass": "yes", "fail": "no",
             "applicability": "all cases", "verification": "inspect output",
+            "applicable_inputs": ["case-1"],
         }
         self.write_contract()
 
@@ -50,6 +55,8 @@ class PairLedgerTests(unittest.TestCase):
             str(self.commitment),
             "--decision-contract",
             str(self.contract),
+            "--decision-contract-commitment",
+            str(self.contract_commitment),
         ]
         if commit:
             command.append("--commit-manifest")
@@ -69,16 +76,19 @@ class PairLedgerTests(unittest.TestCase):
             check=False,
         )
 
-    def write_contract(self, *, resample_cap: int = 1) -> None:
+    def write_contract(self, *, resample_cap: int = 1, input_ids: tuple[str, ...] = ("case-1",)) -> None:
+        self.criterion_body["applicable_inputs"] = list(input_ids)
         self.contract.write_text(json.dumps({
             "allowed_resample_count": resample_cap,
-            "inputs": {"case-1": self.input_body, "case-2": self.input_body},
+            "samples_per_input": 1,
+            "inputs": {input_id: self.input_bodies[input_id] for input_id in input_ids},
             "criteria": {"quality": self.criterion_body},
         }), encoding="utf-8")
 
     def pair_fields(self, input_id: str = "case-1") -> str:
+        input_body = self.input_bodies[input_id.strip()]
         return (
-            f"optimization\t{input_id}\t{payload_sha256(self.input_body)}\t1\tquality\t"
+            f"{input_body['split']}\t{input_id}\t{payload_sha256(input_body)}\t1\tquality\t"
             f"{payload_sha256(self.criterion_body)}"
         )
 
@@ -102,7 +112,16 @@ class PairLedgerTests(unittest.TestCase):
         result = self.run_validator(2)
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("differs from frozen commitment", result.stderr)
+        self.assertIn("manifest input is absent from decision contract", result.stderr)
+
+    def test_rejects_manifest_omitting_declared_input(self) -> None:
+        self.write_contract(input_ids=("case-1", "case-2"))
+        self.write_single_pair()
+
+        result = self.run_validator(commit=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("manifest_contract_missing", result.stderr)
 
     def test_accepts_same_manifest_for_cumulative_experiment(self) -> None:
         self.write_single_pair()
@@ -183,6 +202,17 @@ class PairLedgerTests(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("criterion commitment differs", result.stderr)
+
+    def test_rejects_changed_nonrubric_contract_term(self) -> None:
+        self.write_single_pair()
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.write_contract(resample_cap=99)
+
+        result = self.run_validator(1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("decision-contract.sha256", result.stderr)
+        self.assertIn("differs from frozen commitment", result.stderr)
 
     def test_rejects_missing_trailing_column_without_traceback(self) -> None:
         self.write_single_pair()

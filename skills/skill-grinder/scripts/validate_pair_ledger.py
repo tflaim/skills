@@ -45,6 +45,9 @@ def load_decision_contract(path: Path) -> dict[str, object]:
         fail(f"decision contract inputs must be a nonempty object: {path}")
     if not isinstance(contract.get("criteria"), dict) or not contract["criteria"]:
         fail(f"decision contract criteria must be a nonempty object: {path}")
+    samples = contract.get("samples_per_input")
+    if isinstance(samples, bool) or not isinstance(samples, int) or samples < 1:
+        fail(f"decision contract samples_per_input must be a positive integer: {path}")
     cap = contract.get("allowed_resample_count")
     if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
         fail(f"decision contract allowed_resample_count must be a nonnegative integer: {path}")
@@ -98,6 +101,22 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
     inputs = contract["inputs"]
     criteria = contract["criteria"]
     assert isinstance(inputs, dict) and isinstance(criteria, dict)
+    input_hashes: dict[str, str] = {}
+    for input_id, definition in inputs.items():
+        if not isinstance(definition, dict) or definition.get("split") not in {"optimization", "validation"}:
+            fail(f"decision contract input {input_id} must declare optimization or validation split")
+        input_hashes[input_id] = payload_sha256(definition)
+    criterion_hashes: dict[str, str] = {}
+    for criterion, definition in criteria.items():
+        if not isinstance(definition, dict) or not isinstance(definition.get("applicable_inputs"), list):
+            fail(f"decision contract criterion {criterion} must declare applicable_inputs")
+        applicable = definition["applicable_inputs"]
+        if not applicable or any(item not in inputs for item in applicable) or len(applicable) != len(set(applicable)):
+            fail(f"decision contract criterion {criterion} has invalid applicable_inputs")
+        criterion_hashes[criterion] = payload_sha256(definition)
+    for input_id in inputs:
+        if not any(input_id in definition["applicable_inputs"] for definition in criteria.values()):
+            fail(f"decision contract input has no applicable criterion: {input_id}")
     for row in rows:
         input_id = row["input_id"]
         criterion = row["criterion"]
@@ -105,10 +124,25 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
             fail(f"manifest input is absent from decision contract: {input_id}")
         if criterion not in criteria:
             fail(f"manifest criterion is absent from decision contract: {criterion}")
-        if row["input_sha256"] != payload_sha256(inputs[input_id]):
+        if row["input_sha256"] != input_hashes[input_id]:
             fail(f"manifest input commitment differs from decision contract: {input_id}")
-        if row["criterion_sha256"] != payload_sha256(criteria[criterion]):
+        if row["criterion_sha256"] != criterion_hashes[criterion]:
             fail(f"manifest criterion commitment differs from decision contract: {criterion}")
+    expected = {
+        (
+            definition["split"], input_id, input_hashes[input_id], sample,
+            criterion, criterion_hashes[criterion],
+        )
+        for input_id, definition in inputs.items()
+        for sample in range(1, int(contract["samples_per_input"]) + 1)
+        for criterion, criterion_definition in criteria.items()
+        if input_id in criterion_definition["applicable_inputs"]
+    }
+    actual = {pair_key(row, Path("pair-manifest.tsv")) for row in rows}
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    if missing or extra:
+        fail(json.dumps({"manifest_contract_missing": missing, "manifest_contract_extra": extra}, sort_keys=True))
 
 
 def check_manifest_commitment(path: Path, manifest_sha256: str) -> None:
@@ -136,6 +170,7 @@ def main() -> None:
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--manifest-commitment", required=True, type=Path)
     parser.add_argument("--decision-contract", required=True, type=Path)
+    parser.add_argument("--decision-contract-commitment", required=True, type=Path)
     parser.add_argument("--commit-manifest", action="store_true")
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--resample-ledger", type=Path)
@@ -143,6 +178,7 @@ def main() -> None:
     args = parser.parse_args()
 
     contract = load_decision_contract(args.decision_contract)
+    decision_contract_sha256 = sha256(args.decision_contract)
     manifest_rows = read_tsv(args.manifest, MANIFEST_HEADER)
     manifest_sha256 = sha256(args.manifest)
     manifest_keys = [pair_key(row, args.manifest) for row in manifest_rows]
@@ -153,8 +189,10 @@ def main() -> None:
     if args.commit_manifest:
         if args.ledger or args.resample_ledger or args.experiment is not None:
             fail("--commit-manifest cannot be combined with ledger validation")
+        create_manifest_commitment(args.decision_contract_commitment, decision_contract_sha256)
         create_manifest_commitment(args.manifest_commitment, manifest_sha256)
         print(json.dumps({
+            "decision_contract_sha256": decision_contract_sha256,
             "manifest_sha256": manifest_sha256,
             "rows": len(manifest_rows),
             "status": "COMMITTED",
@@ -164,6 +202,7 @@ def main() -> None:
         fail("validation requires --ledger, --resample-ledger, and --experiment")
     if args.experiment < 1:
         fail("experiment must be a positive integer")
+    check_manifest_commitment(args.decision_contract_commitment, decision_contract_sha256)
     check_manifest_commitment(args.manifest_commitment, manifest_sha256)
 
     by_experiment: dict[int, list[dict[str, str]]] = {}
@@ -234,7 +273,7 @@ def main() -> None:
     selected = by_experiment[args.experiment]
     verdicts = Counter(row["verdict"] for row in selected)
     print(json.dumps({
-        "decision_contract_sha256": sha256(args.decision_contract),
+        "decision_contract_sha256": decision_contract_sha256,
         "experiment": args.experiment,
         "ledger_sha256": sha256(args.ledger),
         "manifest_sha256": manifest_sha256,
