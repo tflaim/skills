@@ -33,12 +33,13 @@ Do not use exploratory mode for an efficacy claim.
 
 1. Read the target SKILL.md, its linked references and scripts, and any trustworthy prior evidence.
 2. Define observable success criteria and mandatory invariants before editing.
-3. Build train, validation, and locked-test cases. Use different case IDs across splits. Tag train failures by the behavior they exercise.
+3. Build visible train and validation cases. Use different case IDs across splits and tag train failures by the behavior they exercise. Have a separate evaluator keep the locked-test bodies and give the optimizer only rows containing an opaque `id` and a `commitment_sha256` over each canonical test case. The optimizer must never receive the locked prompts.
 4. Initialize a frozen run:
 
        python3 scripts/skill_forge.py init-run \
          --skill path/to/SKILL.md \
          --cases cases.jsonl \
+         --test-commitments locked-test-commitments.jsonl \
          --run-dir run \
          --mode quality
 
@@ -60,7 +61,7 @@ Do not use exploratory mode for an efficacy claim.
          --run-dir run \
          --out run/candidates/candidate.SKILL.md
 
-8. Score candidates on train for diagnosis. Release validation only for plausible candidates. Release locked test only after validation accepts the exact baseline and candidate.
+8. Score candidates on train for diagnosis and preservation of the original failures. Release validation only for plausible candidates. Release locked tests only after validation accepts the exact candidate. The external evaluator verifies the committed test bodies, runs the baseline and candidate, and returns score files bound to the run, manifest, exact skill hash, and evaluator hash.
 9. Write the decision:
 
        python3 scripts/skill_forge.py decide \
@@ -82,9 +83,10 @@ Do not use exploratory mode for an efficacy claim.
 
 ## Evidence rules
 
-- Compare the same cases, evaluator, and maximum scores. The helper rejects unequal denominators.
+- Bind every score file to the run ID, manifest hash, exact skill hash, and evaluator hash. Compare the same cases, evaluator, and maximum scores. The helper rejects stale candidates, changed evaluators, and unequal denominators.
 - Treat infrastructure failures as invalid evidence, not candidate failures.
 - A baseline mandatory failure blocks comparison. Repair the baseline and start a new run.
+- A candidate train mandatory failure or regression on an original train failure blocks acceptance.
 - A validation mandatory failure is Rejected. A locked-test mandatory failure blocks promotion and leaves a quality candidate Accepted with an explicit risk.
 - A train-only win is Found.
 - A locked-test regression leaves a quality candidate Accepted, not promoted. Reject a compression candidate that regresses on locked test.
@@ -95,7 +97,7 @@ Do not use exploratory mode for an efficacy claim.
 - manifest.json
 - cases/train.jsonl
 - cases/validation.jsonl
-- cases/test.jsonl
+- cases/test-commitments.jsonl
 - validation-adequacy.json
 - results.tsv
 - changelog.md

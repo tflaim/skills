@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -94,6 +95,13 @@ def require_string(value: Any, field: str) -> str:
     return value.strip()
 
 
+def require_sha256(value: Any, field: str) -> str:
+    parsed = require_string(value, field)
+    if not re.fullmatch(r"[0-9a-f]{64}", parsed):
+        raise SkillForgeError(f"{field} must be a lowercase SHA-256 digest")
+    return parsed
+
+
 def require_tags(value: Any, field: str, *, allow_empty: bool = True) -> list[str]:
     if value is None and allow_empty:
         return []
@@ -122,9 +130,9 @@ def parse_nonnegative_int(value: Any, field: str) -> int:
     return value
 
 
-def normalize_cases(rows: Iterable[dict[str, Any]], run_id: str, validation_pct: int, test_pct: int) -> dict[str, list[dict[str, Any]]]:
-    if validation_pct < 0 or test_pct < 0 or validation_pct + test_pct >= 100:
-        raise SkillForgeError("validation-pct and test-pct must be non-negative and sum to less than 100")
+def normalize_cases(rows: Iterable[dict[str, Any]], run_id: str, validation_pct: int) -> dict[str, list[dict[str, Any]]]:
+    if validation_pct <= 0 or validation_pct >= 100:
+        raise SkillForgeError("validation-pct must be greater than 0 and less than 100")
     raw = list(rows)
     if not raw:
         raise SkillForgeError("cases file must contain at least one case")
@@ -132,7 +140,7 @@ def normalize_cases(rows: Iterable[dict[str, Any]], run_id: str, validation_pct:
     if any(explicit) and not all(explicit):
         raise SkillForgeError("cases must either all declare split or all use deterministic splitting")
     seen: set[str] = set()
-    result = {"train": [], "validation": [], "test": []}
+    result = {"train": [], "validation": []}
     for index, row in enumerate(raw):
         case_id = require_string(row.get("id"), f"cases[{index}].id")
         if case_id in seen:
@@ -146,15 +154,35 @@ def normalize_cases(rows: Iterable[dict[str, Any]], run_id: str, validation_pct:
         if all(explicit):
             split = row.get("split")
             if split not in result:
-                raise SkillForgeError(f"cases[{index}].split must be train, validation, or test")
+                raise SkillForgeError(f"cases[{index}].split must be train or validation")
         else:
             bucket = int(hashlib.sha256(f"{run_id}:{case_id}".encode()).hexdigest()[:8], 16) % 100
-            split = "test" if bucket < test_pct else "validation" if bucket < test_pct + validation_pct else "train"
+            split = "validation" if bucket < validation_pct else "train"
         normalized["split"] = split
         result[split].append(normalized)
     if not result["train"] or not result["validation"]:
         raise SkillForgeError("run requires non-empty train and validation splits")
     return result
+
+
+def normalize_test_commitments(rows: Iterable[dict[str, Any]]) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for index, row in enumerate(rows):
+        case_id = require_string(row.get("id"), f"test commitments[{index}].id")
+        if case_id in seen:
+            raise SkillForgeError(f"duplicate locked-test case id: {case_id}")
+        seen.add(case_id)
+        normalized.append({
+            "id": case_id,
+            "commitment_sha256": require_sha256(
+                row.get("commitment_sha256"),
+                f"test commitments[{index}].commitment_sha256",
+            ),
+        })
+    if not normalized:
+        raise SkillForgeError("locked-test commitments must contain at least one case")
+    return normalized
 
 
 def command_init_run(args: argparse.Namespace) -> int:
@@ -165,7 +193,12 @@ def command_init_run(args: argparse.Namespace) -> int:
     if run_dir.exists() and any(run_dir.iterdir()):
         raise SkillForgeError(f"run directory must be new or empty: {run_dir}")
     run_id = args.run_id or hashlib.sha256(f"{skill}:{file_hash(skill)}".encode()).hexdigest()[:16]
-    splits = normalize_cases(iter_jsonl(args.cases), run_id, args.validation_pct, args.test_pct)
+    splits = normalize_cases(iter_jsonl(args.cases), run_id, args.validation_pct)
+    test_commitments = normalize_test_commitments(iter_jsonl(args.test_commitments))
+    visible_ids = {row["id"] for rows in splits.values() for row in rows}
+    duplicate_ids = sorted(visible_ids & {row["id"] for row in test_commitments})
+    if duplicate_ids:
+        raise SkillForgeError(f"case ids overlap visible and locked splits: {', '.join(duplicate_ids)}")
     run_dir.mkdir(parents=True, exist_ok=True)
     split_hashes: dict[str, str] = {}
     split_case_ids: dict[str, list[str]] = {}
@@ -173,6 +206,9 @@ def command_init_run(args: argparse.Namespace) -> int:
         write_jsonl(run_dir / "cases" / f"{split}.jsonl", rows)
         split_hashes[split] = payload_hash(rows)
         split_case_ids[split] = [row["id"] for row in rows]
+    write_jsonl(run_dir / "cases" / "test-commitments.jsonl", test_commitments)
+    split_hashes["test"] = payload_hash(test_commitments)
+    split_case_ids["test"] = [row["id"] for row in test_commitments]
     manifest = {
         "schema_version": MANIFEST_SCHEMA,
         "run_id": run_id,
@@ -209,13 +245,19 @@ def load_run(run_dir: str | Path) -> tuple[Path, dict[str, Any]]:
     bare.pop("manifest_sha256", None)
     if claimed != payload_hash(bare):
         raise SkillForgeError("manifest hash is invalid")
-    for split in ("train", "validation", "test"):
+    for split in ("train", "validation"):
         rows = list(iter_jsonl(root / "cases" / f"{split}.jsonl"))
         if payload_hash(rows) != manifest["split_sha256"].get(split):
             raise SkillForgeError(f"{split} split differs from the manifest")
         ids = [require_string(row.get("id"), f"{split}.id") for row in rows]
         if ids != manifest["split_case_ids"].get(split):
             raise SkillForgeError(f"{split} case ids differ from the manifest")
+    test_commitments = normalize_test_commitments(iter_jsonl(root / "cases" / "test-commitments.jsonl"))
+    if payload_hash(test_commitments) != manifest["split_sha256"].get("test"):
+        raise SkillForgeError("locked-test commitments differ from the manifest")
+    test_ids = [row["id"] for row in test_commitments]
+    if test_ids != manifest["split_case_ids"].get("test"):
+        raise SkillForgeError("locked-test case ids differ from the manifest")
     all_ids = [item for ids in manifest["split_case_ids"].values() for item in ids]
     if len(all_ids) != len(set(all_ids)):
         raise SkillForgeError("case ids must be unique across all splits")
@@ -301,6 +343,8 @@ def command_apply_edits(args: argparse.Namespace) -> int:
 @dataclass(frozen=True)
 class Score:
     split: str
+    skill_sha256: str
+    evaluator_sha256: str
     score: float
     max_score: float
     mandatory_failures: int
@@ -308,11 +352,24 @@ class Score:
     cases: tuple[tuple[str, float, float, int], ...]
 
 
-def parse_score(payload: Any, manifest: dict[str, Any], expected_split: str) -> Score:
+def parse_score(
+    payload: Any,
+    manifest: dict[str, Any],
+    expected_split: str,
+    expected_skill_sha256: str,
+) -> Score:
     if not isinstance(payload, dict) or payload.get("schema_version") != SCORE_SCHEMA:
         raise SkillForgeError(f"score file must use {SCORE_SCHEMA}")
     if payload.get("split") != expected_split:
         raise SkillForgeError(f"score file must be for {expected_split}")
+    if payload.get("run_id") != manifest["run_id"]:
+        raise SkillForgeError("score file does not match the run id")
+    if payload.get("manifest_sha256") != manifest["manifest_sha256"]:
+        raise SkillForgeError("score file does not match the run manifest")
+    skill_sha256 = require_sha256(payload.get("skill_sha256"), "skill_sha256")
+    if skill_sha256 != expected_skill_sha256:
+        raise SkillForgeError("score file does not match the expected skill")
+    evaluator_sha256 = require_sha256(payload.get("evaluator_sha256"), "evaluator_sha256")
     rows = payload.get("cases")
     if not isinstance(rows, list) or not rows:
         raise SkillForgeError("score cases must be a non-empty list")
@@ -347,7 +404,16 @@ def parse_score(payload: Any, manifest: dict[str, Any], expected_split: str) -> 
     claimed_infrastructure = parse_nonnegative_int(payload.get("infrastructure_failures", 0), "infrastructure_failures")
     if not math.isclose(total, claimed_total) or not math.isclose(maximum, claimed_maximum) or failures != claimed_failures or infrastructure != claimed_infrastructure:
         raise SkillForgeError("aggregate score fields do not match per-case results")
-    return Score(expected_split, total, maximum, failures, infrastructure, tuple(parsed))
+    return Score(
+        expected_split,
+        skill_sha256,
+        evaluator_sha256,
+        total,
+        maximum,
+        failures,
+        infrastructure,
+        tuple(parsed),
+    )
 
 
 def validate_comparable(current: Score, candidate: Score) -> None:
@@ -355,6 +421,8 @@ def validate_comparable(current: Score, candidate: Score) -> None:
         raise SkillForgeError("infrastructure failures invalidate score evidence")
     if current.split != candidate.split:
         raise SkillForgeError("score splits do not match")
+    if current.evaluator_sha256 != candidate.evaluator_sha256:
+        raise SkillForgeError("score evaluators do not match")
     if [row[0] for row in current.cases] != [row[0] for row in candidate.cases]:
         raise SkillForgeError("score case ids do not match")
     if [row[2] for row in current.cases] != [row[2] for row in candidate.cases]:
@@ -364,7 +432,7 @@ def validate_comparable(current: Score, candidate: Score) -> None:
 
 
 def check_validation_adequacy(train_payload: Any, root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
-    train = parse_score(train_payload, manifest, "train")
+    train = parse_score(train_payload, manifest, "train", manifest["skill_sha256"])
     if train.mandatory_failures:
         raise SkillForgeError("baseline train evidence has mandatory failures")
     train_cases = {row["id"]: row for row in iter_jsonl(root / "cases" / "train.jsonl")}
@@ -423,8 +491,9 @@ def command_decide(args: argparse.Namespace) -> int:
     validate_receipt(receipt_payload, manifest, candidate_skill)
     current_payload = load_json(args.current)
     candidate_payload = load_json(args.candidate)
-    current = parse_score(current_payload, manifest, "validation")
-    candidate = parse_score(candidate_payload, manifest, "validation")
+    candidate_sha256 = file_hash(candidate_skill)
+    current = parse_score(current_payload, manifest, "validation", manifest["skill_sha256"])
+    candidate = parse_score(candidate_payload, manifest, "validation", candidate_sha256)
     validate_comparable(current, candidate)
     if current.mandatory_failures:
         raise SkillForgeError("baseline validation evidence has mandatory failures")
@@ -434,10 +503,22 @@ def command_decide(args: argparse.Namespace) -> int:
         raise SkillForgeError("validation adequacy artifact failed recomputation")
     if mode != "exploratory" and not recomputed["adequate"]:
         raise SkillForgeError("validation does not cover observed train failure tags")
-    train_current = parse_score(load_json(args.train_score), manifest, "train")
-    train_candidate = parse_score(load_json(args.candidate_train_score), manifest, "train") if args.candidate_train_score else None
-    if train_candidate:
-        validate_comparable(train_current, train_candidate)
+    train_current = parse_score(load_json(args.train_score), manifest, "train", manifest["skill_sha256"])
+    train_candidate = parse_score(load_json(args.candidate_train_score), manifest, "train", candidate_sha256)
+    validate_comparable(train_current, train_candidate)
+    if train_candidate.mandatory_failures:
+        raise SkillForgeError("candidate train evidence has mandatory failures")
+    if mode != "exploratory":
+        current_train_cases = {row[0]: row for row in train_current.cases}
+        regressed_failures = [
+            case_id
+            for case_id, score, maximum, _ in train_candidate.cases
+            if current_train_cases[case_id][1] < maximum and score < current_train_cases[case_id][1]
+        ]
+        if regressed_failures:
+            raise SkillForgeError(
+                "candidate regressed on original train failures: " + ", ".join(regressed_failures)
+            )
     status = "Rejected"
     reason = "candidate did not satisfy the selected mode"
     validation_delta = candidate.score - current.score
@@ -464,8 +545,13 @@ def command_decide(args: argparse.Namespace) -> int:
     if args.test_current or args.test_candidate:
         if not args.test_current or not args.test_candidate:
             raise SkillForgeError("both locked-test scores are required")
-        test_current = parse_score(load_json(args.test_current), manifest, "test")
-        test_candidate = parse_score(load_json(args.test_candidate), manifest, "test")
+        test_current = parse_score(
+            load_json(args.test_current),
+            manifest,
+            "test",
+            manifest["skill_sha256"],
+        )
+        test_candidate = parse_score(load_json(args.test_candidate), manifest, "test", candidate_sha256)
         validate_comparable(test_current, test_candidate)
         if test_current.mandatory_failures:
             raise SkillForgeError("baseline locked-test evidence has mandatory failures")
@@ -509,11 +595,11 @@ def build_parser() -> argparse.ArgumentParser:
     init_run = commands.add_parser("init-run", help="Create a deterministic run and frozen splits")
     init_run.add_argument("--skill", required=True)
     init_run.add_argument("--cases", required=True)
+    init_run.add_argument("--test-commitments", required=True)
     init_run.add_argument("--run-dir", required=True)
     init_run.add_argument("--mode", required=True, choices=sorted(MODES))
     init_run.add_argument("--run-id")
     init_run.add_argument("--validation-pct", type=int, default=20)
-    init_run.add_argument("--test-pct", type=int, default=20)
     init_run.add_argument("--max-edits", type=int, default=4)
     init_run.add_argument("--max-edit-chars", type=int, default=2000)
     init_run.add_argument("--max-total-changed-chars", type=int, default=4000)
@@ -540,7 +626,7 @@ def build_parser() -> argparse.ArgumentParser:
     decide.add_argument("--candidate-receipt", required=True)
     decide.add_argument("--validation-adequacy", required=True)
     decide.add_argument("--train-score", required=True)
-    decide.add_argument("--candidate-train-score")
+    decide.add_argument("--candidate-train-score", required=True)
     decide.add_argument("--test-current")
     decide.add_argument("--test-candidate")
     decide.add_argument("--out", required=True)

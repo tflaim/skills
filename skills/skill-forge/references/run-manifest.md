@@ -4,13 +4,21 @@ The bundled helper uses immutable JSON artifacts. It rejects duplicate JSON keys
 
 ## Case JSONL
 
-Each row requires an id, prompt, tags array, and optionally an explicit split:
+Each visible row requires an id, prompt, tags array, and optionally an explicit split:
 
     {"id":"unique-id","prompt":"user request","tags":["failure-axis"],"split":"train"}
 
-The split field is optional only when it is omitted from every row. In that case, init-run deterministically assigns train, validation, and test from the run ID and case ID. A run must have non-empty train and validation splits. Case IDs must be unique across all splits.
+The split field is optional only when it is omitted from every row. In that case, init-run deterministically assigns train and validation from the run ID and case ID. A run must have non-empty train and validation splits. Case IDs must be unique across all splits.
 
-Use explicit splits for small suites so every required split is represented.
+Use explicit splits for small suites so every visible split is represented.
+
+## Locked-test commitments
+
+The optimizer receives a separate JSONL file containing only opaque IDs and SHA-256 commitments created by the external evaluator:
+
+    {"id":"test-a","commitment_sha256":"sha256 of the canonical private test case"}
+
+The external evaluator keeps the test prompts outside the optimizer context. Compute each commitment as SHA-256 over UTF-8 JSON serialized with sorted keys, `,` and `:` separators, and ASCII escaping. Before scoring, the evaluator verifies that each revealed case reproduces its commitment. `init-run` writes only these commitment rows to `cases/test-commitments.jsonl`; it never writes locked prompts into the run directory.
 
 ## Patch JSON
 
@@ -31,6 +39,10 @@ Targets must be unique, non-overlapping, and occur exactly once. Frontmatter edi
 
     {
       "schema_version": "skill-forge-score-v1",
+      "run_id": "frozen run id",
+      "manifest_sha256": "sha256 from manifest.json",
+      "skill_sha256": "sha256 of the skill that produced these outputs",
+      "evaluator_sha256": "sha256 of the frozen evaluator and rubric configuration",
       "split": "validation",
       "score": 8,
       "max_score": 10,
@@ -43,7 +55,7 @@ Targets must be unique, non-overlapping, and occur exactly once. Frontmatter edi
 
 Optional infrastructure_failures fields default to zero and must also match their per-case sum. Any nonzero infrastructure failure invalidates comparison.
 
-Aggregate fields must equal the per-case sums. Baseline and candidate evidence must use the frozen case order and identical per-case maximum scores. A higher raw score with a larger denominator is incomparable and rejected.
+Aggregate fields must equal the per-case sums. Baseline and candidate evidence must match the run and manifest, bind to their exact skill files, use the same evaluator hash, use the frozen case order, and use identical per-case maximum scores. Stale candidate evidence, a changed evaluator, or a higher raw score with a larger denominator is rejected.
 
 ## Validation adequacy
 

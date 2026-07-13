@@ -43,20 +43,27 @@ class SkillForgeTests(unittest.TestCase):
             {"id": "train-b", "prompt": "train b", "tags": ["format"], "split": "train"},
             {"id": "validation-a", "prompt": "validation a", "tags": [validation_tag], "split": "validation"},
             {"id": "validation-b", "prompt": "validation b", "tags": ["format"], "split": "validation"},
-            {"id": "test-a", "prompt": "test a", "tags": ["routing"], "split": "test"},
-            {"id": "test-b", "prompt": "test b", "tags": ["format"], "split": "test"},
         ]
         cases = self.root / f"cases-{mode}.jsonl"
         cases.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+        commitments = self.root / f"test-commitments-{mode}.jsonl"
+        commitment_rows = [
+            {"id": "test-a", "commitment_sha256": "a" * 64},
+            {"id": "test-b", "commitment_sha256": "b" * 64},
+        ]
+        commitments.write_text(
+            "".join(json.dumps(row) + "\n" for row in commitment_rows),
+            encoding="utf-8",
+        )
         run = self.root / f"run-{mode}"
         args = argparse.Namespace(
             skill=str(skill),
             cases=str(cases),
+            test_commitments=str(commitments),
             run_dir=str(run),
             mode=mode,
             run_id=f"{mode}-run",
             validation_pct=20,
-            test_pct=20,
             max_edits=4,
             max_edit_chars=2000,
             max_total_changed_chars=4000,
@@ -65,7 +72,16 @@ class SkillForgeTests(unittest.TestCase):
         manifest = forge.load_json(run / "manifest.json")
         return skill, run, manifest
 
-    def score(self, manifest: dict, split: str, values: list[float], maxima: list[float] | None = None, failures: list[int] | None = None) -> dict:
+    def score(
+        self,
+        manifest: dict,
+        split: str,
+        values: list[float],
+        maxima: list[float] | None = None,
+        failures: list[int] | None = None,
+        skill_sha256: str | None = None,
+        evaluator_sha256: str = "c" * 64,
+    ) -> dict:
         ids = manifest["split_case_ids"][split]
         maxima = maxima or [5.0] * len(ids)
         failures = failures or [0] * len(ids)
@@ -75,6 +91,10 @@ class SkillForgeTests(unittest.TestCase):
         ]
         return {
             "schema_version": forge.SCORE_SCHEMA,
+            "run_id": manifest["run_id"],
+            "manifest_sha256": manifest["manifest_sha256"],
+            "skill_sha256": skill_sha256 or manifest["skill_sha256"],
+            "evaluator_sha256": evaluator_sha256,
             "split": split,
             "score": sum(values),
             "max_score": sum(maxima),
@@ -107,9 +127,25 @@ class SkillForgeTests(unittest.TestCase):
         self.assertEqual(forge.command_apply_edits(args), 0)
         return candidate, Path(str(candidate) + ".receipt.json")
 
-    def evidence(self, run: Path, manifest: dict) -> dict[str, Path]:
+    def evidence(
+        self,
+        run: Path,
+        manifest: dict,
+        candidate: Path,
+        candidate_values: list[float] | None = None,
+        candidate_failures: list[int] | None = None,
+    ) -> dict[str, Path]:
         train = self.write_json(f"{run.name}-train.json", self.score(manifest, "train", [3, 5]))
-        candidate_train = self.write_json(f"{run.name}-candidate-train.json", self.score(manifest, "train", [5, 5]))
+        candidate_train = self.write_json(
+            f"{run.name}-candidate-train.json",
+            self.score(
+                manifest,
+                "train",
+                candidate_values or [5, 5],
+                failures=candidate_failures,
+                skill_sha256=forge.file_hash(candidate),
+            ),
+        )
         adequacy = run / "validation-adequacy.json"
         self.assertEqual(
             forge.command_check_validation(argparse.Namespace(run_dir=str(run), train_score=str(train), out=str(adequacy))),
@@ -125,19 +161,40 @@ class SkillForgeTests(unittest.TestCase):
         candidate_values: list[float],
         test_values: tuple[list[float], list[float]] | None = None,
         candidate_failures: list[int] | None = None,
+        candidate_train_values: list[float] | None = None,
+        candidate_train_failures: list[int] | None = None,
+        candidate_score_sha256: str | None = None,
+        candidate_evaluator_sha256: str = "c" * 64,
     ) -> dict:
         skill, run, manifest = self.make_run(mode)
         candidate, receipt = self.make_candidate(skill, run, "Short." if mode == "compression" else "New rule.")
-        evidence = self.evidence(run, manifest)
+        candidate_sha256 = forge.file_hash(candidate)
+        evidence = self.evidence(
+            run,
+            manifest,
+            candidate,
+            candidate_values=candidate_train_values,
+            candidate_failures=candidate_train_failures,
+        )
         current = self.write_json(f"{mode}-current.json", self.score(manifest, "validation", current_values))
         candidate_score = self.write_json(
             f"{mode}-candidate.json",
-            self.score(manifest, "validation", candidate_values, failures=candidate_failures),
+            self.score(
+                manifest,
+                "validation",
+                candidate_values,
+                failures=candidate_failures,
+                skill_sha256=candidate_score_sha256 or candidate_sha256,
+                evaluator_sha256=candidate_evaluator_sha256,
+            ),
         )
         test_current = test_candidate = None
         if test_values:
             test_current = self.write_json(f"{mode}-test-current.json", self.score(manifest, "test", test_values[0]))
-            test_candidate = self.write_json(f"{mode}-test-candidate.json", self.score(manifest, "test", test_values[1]))
+            test_candidate = self.write_json(
+                f"{mode}-test-candidate.json",
+                self.score(manifest, "test", test_values[1], skill_sha256=candidate_sha256),
+            )
         out = run / "decisions" / "forge.json"
         forge.command_decide(
             argparse.Namespace(
@@ -160,6 +217,50 @@ class SkillForgeTests(unittest.TestCase):
 
     def test_quality_validation_lift_is_accepted(self) -> None:
         self.assertEqual(self.decide(mode="quality", current_values=[4, 4], candidate_values=[5, 4])["status"], "Accepted")
+
+    def test_candidate_train_regression_on_original_failure_is_rejected(self) -> None:
+        with self.assertRaisesRegex(forge.SkillForgeError, "regressed on original train failures"):
+            self.decide(
+                mode="quality",
+                current_values=[4, 4],
+                candidate_values=[5, 4],
+                candidate_train_values=[2, 5],
+            )
+
+    def test_candidate_train_mandatory_failure_is_rejected(self) -> None:
+        with self.assertRaisesRegex(forge.SkillForgeError, "train evidence has mandatory failures"):
+            self.decide(
+                mode="quality",
+                current_values=[4, 4],
+                candidate_values=[5, 4],
+                candidate_train_failures=[1, 0],
+            )
+
+    def test_stale_candidate_score_is_rejected(self) -> None:
+        with self.assertRaisesRegex(forge.SkillForgeError, "expected skill"):
+            self.decide(
+                mode="quality",
+                current_values=[4, 4],
+                candidate_values=[5, 4],
+                candidate_score_sha256="d" * 64,
+            )
+
+    def test_changed_candidate_evaluator_is_rejected(self) -> None:
+        with self.assertRaisesRegex(forge.SkillForgeError, "evaluators do not match"):
+            self.decide(
+                mode="quality",
+                current_values=[4, 4],
+                candidate_values=[5, 4],
+                candidate_evaluator_sha256="d" * 64,
+            )
+
+    def test_locked_test_bodies_are_not_written_to_run(self) -> None:
+        _, run, _ = self.make_run()
+
+        self.assertFalse((run / "cases" / "test.jsonl").exists())
+        rows = list(forge.iter_jsonl(run / "cases" / "test-commitments.jsonl"))
+        self.assertEqual([row["id"] for row in rows], ["test-a", "test-b"])
+        self.assertTrue(all("prompt" not in row for row in rows))
 
     def test_quality_lift_and_locked_hold_is_promoted(self) -> None:
         decision = self.decide(
@@ -194,13 +295,23 @@ class SkillForgeTests(unittest.TestCase):
     def test_locked_mandatory_failure_blocks_promotion(self) -> None:
         skill, run, manifest = self.make_run("quality")
         candidate, receipt = self.make_candidate(skill, run)
-        evidence = self.evidence(run, manifest)
+        candidate_sha256 = forge.file_hash(candidate)
+        evidence = self.evidence(run, manifest, candidate)
         current = self.write_json("locked-failure-current.json", self.score(manifest, "validation", [4, 4]))
-        candidate_score = self.write_json("locked-failure-candidate.json", self.score(manifest, "validation", [5, 4]))
+        candidate_score = self.write_json(
+            "locked-failure-candidate.json",
+            self.score(manifest, "validation", [5, 4], skill_sha256=candidate_sha256),
+        )
         test_current = self.write_json("locked-failure-test-current.json", self.score(manifest, "test", [4, 4]))
         test_candidate = self.write_json(
             "locked-failure-test-candidate.json",
-            self.score(manifest, "test", [5, 4], failures=[1, 0]),
+            self.score(
+                manifest,
+                "test",
+                [5, 4],
+                failures=[1, 0],
+                skill_sha256=candidate_sha256,
+            ),
         )
         out = run / "decisions" / "forge.json"
         forge.command_decide(
@@ -222,8 +333,8 @@ class SkillForgeTests(unittest.TestCase):
         candidate_payload = self.score(manifest, "validation", [5, 4])
         candidate_payload["cases"][0]["infrastructure_failures"] = 1
         candidate_payload["infrastructure_failures"] = 1
-        current = forge.parse_score(current_payload, manifest, "validation")
-        candidate = forge.parse_score(candidate_payload, manifest, "validation")
+        current = forge.parse_score(current_payload, manifest, "validation", manifest["skill_sha256"])
+        candidate = forge.parse_score(candidate_payload, manifest, "validation", manifest["skill_sha256"])
         with self.assertRaisesRegex(forge.SkillForgeError, "infrastructure failures"):
             forge.validate_comparable(current, candidate)
 
@@ -238,11 +349,17 @@ class SkillForgeTests(unittest.TestCase):
 
     def test_unequal_score_denominators_are_rejected(self) -> None:
         _, run, manifest = self.make_run()
-        current = forge.parse_score(self.score(manifest, "validation", [4, 4]), manifest, "validation")
+        current = forge.parse_score(
+            self.score(manifest, "validation", [4, 4]),
+            manifest,
+            "validation",
+            manifest["skill_sha256"],
+        )
         candidate = forge.parse_score(
             self.score(manifest, "validation", [4, 4], maxima=[6, 5]),
             manifest,
             "validation",
+            manifest["skill_sha256"],
         )
         with self.assertRaisesRegex(forge.SkillForgeError, "maximums"):
             forge.validate_comparable(current, candidate)
@@ -253,7 +370,7 @@ class SkillForgeTests(unittest.TestCase):
             {"id": "same", "prompt": "b", "split": "validation"},
         ]
         with self.assertRaisesRegex(forge.SkillForgeError, "duplicate case id"):
-            forge.normalize_cases(rows, "run", 20, 20)
+            forge.normalize_cases(rows, "run", 20)
 
     def test_validation_coverage_gap_is_reported(self) -> None:
         _, run, manifest = self.make_run(validation_tag="other")
