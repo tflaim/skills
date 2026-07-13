@@ -1,9 +1,11 @@
 ---
 name: baton
-description: Pass the baton to a fresh session of any AI coding agent (Claude Code, Codex, Cursor, Aider, Cline, etc.). Writes a state-transfer doc the next agent can act on without recomputing. Use when context is bloating mid-task and you want a clean window without losing your place. Triggers - "/baton", "pass the baton", "hand this off", "start fresh on this", "fresh session for this".
-argument-hint: "[--target=<agent-name>] <what the next session will focus on>"
+description: >-
+  Pass the baton to a fresh session of any AI coding agent (Claude Code, Codex, Cursor, Aider, Cline, etc.).
+  Writes a state-transfer doc the next agent can act on without recomputing. Use when context is
+  bloating mid-task and you want a clean window without losing your place. Triggers - "/baton", "pass
+  the baton", "hand this off", "start fresh on this", "fresh session for this".
 ---
-
 You are writing a **state-transfer document**, not a conversation summary. The receiver needs to *act*, not reconstruct what happened.
 
 ## Path
@@ -12,7 +14,6 @@ Save to `~/handoffs/YYYY-MM-DD-HHMM-<slug>.md` (use the user's preferred time zo
 
 - `<slug>` = short kebab-case derived from the focus argument (e.g. `auth-refactor-resume`, `payments-bug-followup`, `rate-limiter-investigation`).
 - `mkdir -p` the parent if needed.
-- New files do not require a Read before Write — use Write directly.
 - **Decide the full absolute path FIRST, before drafting the doc.** Section 8 must embed this exact path as a literal string. Do not draft with placeholders like "this file" or `<path>` — substitute the real path.
 
 ## Target
@@ -45,9 +46,7 @@ Hit every section. If a section truly doesn't apply, write `n/a` — do not omit
 ## Don'ts
 
 - Don't recap the conversation chronologically.
-- Don't duplicate PRDs, plans, ADRs, commit messages, or diffs. Link them by path or URL.
 - Don't assume the receiver has the same toolset, environment, or memory as you. If the doc references a command, make sure the receiver can run it; if it references a file, make sure the receiver knows the path.
-- Don't write silently. See the confirmation gate below.
 
 ## Confirm before writing
 

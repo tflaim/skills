@@ -1,166 +1,120 @@
 # Skills
 
-Composable skills for AI coding agents that I use daily. Each one solving specific friction points I kept hitting. Every skill is SKILL.md-format and runs on any agent that supports the standard: Claude Code, Codex, Cursor, and others. I also generalized them so it's easy to plug them into your workflow.
+[![skills.sh](https://skills.sh/b/tflaim/skills)](https://skills.sh/tflaim/skills)
+
+Nine portable skills for AI coding agents. Each skill uses the Agent Skills SKILL.md format and is designed to work across Claude Code, Codex, Cursor, and other compatible runtimes.
 
 ## Installation
 
-### Plugin marketplace (Claude Code)
+Install the catalog with the [skills CLI](https://www.skills.sh/docs/cli):
 
-```
-/plugin marketplace add tflaim/skills
-```
+    npx skills@latest add tflaim/skills
 
-### Manual install
+Install one skill:
 
-Clone the whole collection:
+    npx skills@latest add tflaim/skills --skill baton
 
-```bash
-git clone https://github.com/tflaim/skills.git ~/skills
-```
+Install globally instead of in the current project:
 
-Or copy a single skill into your agent's skills directory. For Claude Code this is typically `~/.claude/skills/`. Other agents may use a different location, check your agent's docs.
+    npx skills@latest add tflaim/skills -g
 
-```bash
-# Example: install just baton
-cp -r skills/baton ~/.claude/skills/baton
-```
+The skills CLI collects anonymous installation telemetry by default. To opt out:
+
+    DISABLE_TELEMETRY=1 npx skills@latest add tflaim/skills
+
+### Manual fallback
+
+Clone the repository:
+
+    git clone https://github.com/tflaim/skills.git ~/skills
+
+Then copy the skill you want into the directory documented by your agent. For example:
+
+    cp -R ~/skills/skills/baton ~/.claude/skills/baton
 
 ## Security note
 
-Skills are instructions to an AI agent that has tool access. A SKILL.md you install can shape what your agent reads, writes, executes, or fetches.
+Skills are instructions to an AI agent with tool access. Review a skill before installing it or pointing an agent at sensitive work.
 
-The skills here are the ones I use myself, but you should review the SKILL.md of anything you install before pointing your agent at it. This applies to skills in this repo and any third-party skills you find elsewhere.
+## Catalog
+
+| Skill | What it does |
+| --- | --- |
+| [baton](#baton) | Creates an actionable state transfer for a fresh agent session |
+| [deslop](#deslop) | Removes AI writing patterns while preserving meaning and register |
+| [expert-review](#expert-review) | Applies a grounded expert persona to critique an artifact |
+| [explain-system](#explain-system) | Builds a verified mental model of a technical system |
+| [pr-preflight](#pr-preflight) | Gates commit, push, and PR actions on repository readiness |
+| [pr-review-feedback](#pr-review-feedback) | Adjudicates reviewer claims before code or PR changes |
+| [skill-forge](#skill-forge) | Searches for skill improvements and gates promotion on held-out evidence |
+| [skill-grinder](#skill-grinder) | Runs controlled skill mutations with anchored evaluation |
+| [vet-idea](#vet-idea) | Stress-tests an idea and captures the resulting decisions in a spec |
 
 ## Skills
 
-| Skill | What it does |
-|-------|-------------|
-| [baton](#baton) | Hand off a state-transfer document to a fresh agent session |
-| [deslop](#deslop) | Strip AI writing patterns and inject human voice |
-| [expert-review](#expert-review) | Invoke a domain expert persona for genuinely critical feedback |
-| [explain-system](#explain-system) | Build mental models of technical systems you can reason with |
-| [skill-grinder](#skill-grinder) | Autonomous prompt optimization via binary evals and mutation loops |
-| [vet-idea](#vet-idea) | Stress-test ideas through rigorous questioning, produce execution-ready specs |
-
----
-
 ### baton
 
-Writes a state-transfer document so a fresh agent session can continue your work without recomputing what you already know. Use when context is bloating mid-task and you want a clean window without losing your place.
+Creates a state-transfer document a fresh agent can act on without reconstructing the conversation. It captures the done state, ruled-out approaches, live artifacts, repository state, next concrete action, required context, and the exact first prompt to paste.
 
-Produces a structured handoff with ten required sections: why the work matters, what "done" looks like, what's been tried and ruled out, where you're stuck (or the literal next action if not stuck), live artifacts, repo state, the exact first prompt to paste into the new session, tools the receiver will need, and context to load. Forces receiver-POV imperatives (no "I'll do X next") and concrete operational verbs (no "ship it" or "finish it").
-
-**Target-aware.** If you pass `--target=codex` (or any other agent name), it adapts: agents with auto-loaded project memory get memory-file references; agents without get explicit Read instructions for each load-bearing file.
-
-**When to use:**
-- Context is bloating and you want a fresh session without losing state
-- Handing off to a different agent (Claude Code to Codex, Codex to Cursor, etc.)
-- Pausing for a meeting and resuming after with a different model
-
----
+The handoff adapts to the target runtime and requires user approval before writing the file.
 
 ### deslop
 
-Two jobs: remove AI-generated patterns, then add genuine voice. Stripping the robot is not enough if what's left is sterile.
+Edits AI-sounding prose in two passes: remove recurring patterns, then restore an appropriate human voice. It defaults to a professional register, respects user and project style rules, preserves facts and quotations, and loads the detailed pattern reference only when needed.
 
-Based on Wikipedia's [WikiProject AI Cleanup](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_AI_Cleanup) research and the [humanizer](https://github.com/blader/humanizer) skill by blader (MIT). Adds register calibration (casual/professional/formal), voice injection, banned phrase tiers, and pattern 25 (negation-correction framing).
-
-**25 patterns detected** across content, language, style, communication, filler, and hedging. Each pattern has a "words to watch" list and before/after examples in the included `patterns.md` reference.
-
-**When to use:**
-- Text reads like AI-generated output
-- Editing AI-assisted drafts before publishing
-- Someone flags "this sounds like AI"
-
-**Example trigger:** Just ask your agent to "humanize this" or "deslop this text", or invoke directly with `/deslop`.
-
----
-
-### explain-system
-
-Builds mental models of technical systems through structured exploration. The kind you can take into a meeting and reason with, not skim and forget.
-
-Starts by asking what's driving your curiosity (a meeting tomorrow vs deep architecture understanding). Explores the codebase or documentation, proposes a custom outline, then delivers an explanation with confidence signaling on every claim (verified, inferred, or uncertain).
-
-**Includes:**
-- Adaptive section library: analogy, architecture diagram (Mermaid), integration map, data flow, failure modes, key terminology
-- Depth limits (3 hops, 8-10 files max) to prevent rabbit holes
-- Comprehension check at the end to catch gaps
-- Exportable artifacts (Mermaid diagrams render natively in most wikis, GitHub, GitLab, Notion)
-
-**When to use:**
-- Preparing for a technical discussion about an unfamiliar system
-- Onboarding onto a new codebase
-- Understanding how a service works before making product decisions
-
----
+The skill includes an attributed MIT license and a detailed patterns reference.
 
 ### expert-review
 
-Steps into the role of a world-class domain expert to make your work better. The goal is excellence, and the expert holds you to that standard.
+Reviews an artifact through a user-selected expert, an automatically selected expert, or a small multi-domain panel. It grounds claims in the referenced artifact and source system, challenges assumptions, checks affected stakeholders, and closes every issue with a concrete recommendation.
 
-Three modes:
-1. **User-specified:** "Review this as a senior platform engineer"
-2. **Auto-select:** Analyzes context and picks the most impactful expert
-3. **Multi-persona:** Panel of 2-3 experts when the work spans domains
+### explain-system
 
-Reviews hit these beats: gut reaction, what works, what does not (with consequences and alternatives), what is missing, and a verdict. Calibrates depth to the artifact stage (rough draft vs near-final spec vs production code).
+Explores code or documentation until it can explain a system as a mental model rather than a file inventory. It traces an entry path, verifies critical claims, marks inference and uncertainty, proposes an adaptive outline, and uses diagrams or integration maps only when they help.
 
-**Sticky mode:** Ask the expert to stay active throughout the conversation. They will track whether previous feedback was addressed and escalate recurring issues.
+Exploration is capability-based and portable across runtimes.
 
----
+### pr-preflight
+
+Runs before commit, push, or PR creation. It snapshots staged and unstaged intent, fetches remote truth, checks repository conventions, reviews the actual diff, runs targeted deterministic checks, and blocks the requested action when material concerns remain.
+
+It preserves unrelated local work and derives branch or ticket conventions from the repository instead of imposing a global policy.
+
+### pr-review-feedback
+
+Turns reviewer feedback into source claims, verifies each claim against current code, classifies the verdict, and fixes only accepted issues. It preserves the distinction between valid, partially valid, not valid, duplicate, and out-of-scope feedback.
+
+PR writes require user authorization and available write access. Otherwise the skill returns an exact draft response.
+
+### skill-forge
+
+Combines bounded mutation search with explicit validation and promotion gates. It separates Found, Accepted, Promoted, Compressed, and Rejected outcomes, checks whether validation covers observed train failures, and rejects incomparable evidence.
+
+The bundled standard-library helper is self-contained:
+
+    python3 scripts/skill_forge.py init-run ...
+    python3 scripts/skill_forge.py apply-edits ...
+    python3 scripts/skill_forge.py check-validation ...
+    python3 scripts/skill_forge.py decide ...
 
 ### skill-grinder
 
-Controlled mutation loop for optimizing an existing skill's prompt. It adapts Andrej Karpathy's [autoresearch methodology](https://www.youtube.com/watch?v=LBMiNFBp0cI) to skill prompts.
+Runs a controlled mutation loop against an existing skill. Baseline and candidate samples are compared on the same inputs, narrow changes receive focused regression checks, borderline results are resampled, and compression wins are kept separate from quality claims.
 
-The loop establishes a sampled baseline, scores candidate and baseline outputs together on the same inputs, changes one thing at a time, and keeps only supported quality or compression wins. It stops when gains plateau, evidence remains inconclusive, or the budget is reached.
+Adapted from Andrej Karpathy's [autoresearch methodology](https://www.youtube.com/watch?v=LBMiNFBp0cI), applying autonomous experimentation loops to prompt engineering.
 
-**Key design decisions:**
-
-- **Repeated sampling:** defaults to three samples per input from baseline onward.
-- **Anchored comparisons:** LLM-judged evals compare candidate and baseline samples together for the same input.
-- **Mechanical grounding:** at least one eval must be verifiable with code, parsing, or execution.
-- **Narrow scorers:** targeted mutations receive a separate single-axis regression check.
-- **Noise handling:** borderline results are re-sampled and marked inconclusive until they clear a predeclared gate.
-- **Three-way evaluation:** optimization inputs drive mutations, visible validation inputs gate candidates, and externally isolated locked tests check generalization after selection.
-- **Compression discipline:** smaller prompts can win on tied quality, but are not reported as quality improvements.
-- **Validated pair ledger:** every mutation records one explicit verdict per split, input, sample, and criterion, then checks exact coverage before deciding.
-- **Type A/B/C classification:** interactive workflows are tested through their separable output artifacts.
-
-**Output:** An improved `SKILL.md`, `results.tsv`, a frozen pair manifest, a cumulative validated pair ledger, a `changelog.md` research log, and a baseline snapshot in a user-selected run directory outside the target skill.
-
-Includes `references/eval-guide.md` with examples of mechanical vs LLM-judged evals for text, visual, code, and document skills.
-
-**When to use:**
-
-- An existing skill has repeatable failure patterns you want to reduce
-- You want to systematically identify which instructions are unclear or missing
-- You want a research log that future sessions can continue from
-
-**Not for:** Creating new skills (use skill-creator). One-off eval runs (use skill-creator). Purely interactive skills with no separable output (use expert-review + manual rewrite).
-
----
+It produces an auditable run directory outside the target skill, including the frozen pair manifest, pair ledger, results, and changelog.
 
 ### vet-idea
 
-Stress-tests an idea through targeted, challenging questions before producing a spec. Not brainstorming (divergent, "what should we build?"), but validation (convergent, "have I thought this through?"). Inspired by [Thariq's spec-based workflow](https://x.com/trq212/status/2005315279455142243).
+Stress-tests an existing direction through one challenging question at a time. It inspects available context before asking, includes a genuine challenger option, avoids inventing hard requirements, and stops immediately when the user asks for the best available spec.
 
-Two modes: **Quick** (8-12 rounds, focused) and **Deep** (no cap, exhaustive). Every question includes a challenger option that pushes against the user's likely assumption. Checkpoint summaries every ~5 rounds keep the interview visible. Unresolved items get parked as Open Questions instead of forcing premature decisions.
-
-**Output:** A `SPEC.md` with inline decision reasoning (not a separate decision log), execution guidance, and context file references. Designed to be handed to a fresh agent session for implementation.
-
-**When to use:**
-- You have an idea and want to find the holes before building
-- Converting a rough concept into a spec another session can execute
-- Validating scope and tradeoffs before committing to implementation
-
----
+It produces a focused spec with requirements, reasoning, open questions, execution guidance, and context files.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT. The `deslop` skill carries its own MIT license with attribution to [blader/humanizer](https://github.com/blader/humanizer) for patterns 1-24.
+The repository is MIT by default. The deslop skill retains its attributed MIT license.

@@ -1,8 +1,11 @@
 ---
 name: explain-system
-description: Use when the user wants to genuinely understand how a technical system works, not just get a quick answer. Triggers on "explain this system", "how does X work", "I need to understand X", "walk me through the architecture", "help me understand this codebase", or when preparing for a technical discussion about an unfamiliar system.
+description: >-
+  Use when the user wants to genuinely understand how a technical system works, not just get a quick
+  answer. Triggers on "explain this system", "how does X work", "I need to understand X", "walk me
+  through the architecture", "help me understand this codebase", or when preparing for a technical
+  discussion about an unfamiliar system.
 ---
-
 # Explain System
 
 Build mental models of technical systems you can reason with. Not summaries. Understanding that lets you make product decisions, ask smart questions, and communicate accurately with engineers.
@@ -50,7 +53,7 @@ Only explore what you don't already know.
 
 ### Exploration Strategy
 
-Use the Agent tool (subagent_type: Explore) for thorough codebase exploration. Prioritize in this order:
+You are building a mental model you can reason with, not cataloguing files. Explore only what sharpens that model. Explore directly by default. Delegate independent exploration only when the user or local instructions authorize it and it materially improves the answer. Prioritize in this order:
 
 1. **Entry points first**: main, index, router, handler, app files
 2. **Follow the request path**: trace a single request through the system end-to-end
@@ -69,7 +72,7 @@ Exploration checklist:
 ### Depth Limits
 
 - **Stop at 3 hops of import chains** from the entry point unless the user asked for more (barrel/index re-exports don't count as a hop)
-- **Read no more than 8-10 files in full**. If you can't determine the architecture from 8-10 files, say so and ask the user which component to focus on
+- **Read no more than 8-10 files in full**. Stop when your mental model can predict what the next file holds, not when you run out of files. If you can't determine the architecture from 8-10 files, say so and ask the user which component to focus on
 - **Note what you didn't explore** and why. Don't pretend you read everything
 
 ### Complexity Assessment
@@ -113,7 +116,7 @@ Wait for confirmation or adjustment before proceeding.
 
 ## Phase 4: Explanation
 
-Deliver the sections from the approved outline. For outlines with 4+ sections, offer one natural pause at a logical midpoint (e.g., after architecture + data flow, before failure modes + questions). Don't pause after every section since the user already approved the outline.
+Every section should hand the user a piece of a mental model they can reason with, not a summary they have to memorize. Deliver the sections from the approved outline. For outlines with 4+ sections, offer one natural pause at a logical midpoint (e.g., after architecture + data flow, before failure modes + questions). Don't pause after every section since the user already approved the outline.
 
 ### Confidence Signaling
 

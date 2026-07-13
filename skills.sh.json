@@ -1,0 +1,26 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Software delivery",
+      "description": "Prepare and review changes before they ship.",
+      "skills": ["pr-preflight", "pr-review-feedback"]
+    },
+    {
+      "title": "Thinking and review",
+      "description": "Stress-test ideas, review artifacts, and understand systems.",
+      "skills": ["vet-idea", "expert-review", "explain-system"]
+    },
+    {
+      "title": "Agent operations",
+      "description": "Transfer work and improve agent skills.",
+      "skills": ["baton", "skill-grinder", "skill-forge"]
+    },
+    {
+      "title": "Writing",
+      "description": "Edit AI-sounding prose into direct, audience-appropriate writing.",
+      "skills": ["deslop"]
+    }
+  ]
+}

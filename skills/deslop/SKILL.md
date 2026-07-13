@@ -1,22 +1,16 @@
 ---
 name: deslop
+license: LICENSE
 description: >
   Use when editing, reviewing, or rewriting text that sounds AI-generated, or when
-  asked to humanize text. Triggers: promotional language, em dash overuse, "serves as"
-  constructions, rule-of-three lists, sycophantic tone, generic conclusions, -ing phrase
-  chains, bolded inline headers, filler phrases, vague attributions, negation-correction
-  framing ("This isn't X. This is Y.").
+  asked to humanize text. Triggers: em dash overuse, negation-correction framing
+  ("This isn't X. This is Y."), sycophantic or promotional tone, and stock AI
+  vocabulary ("delve", "leverage", "landscape").
 ---
 
 # Deslop: strip AI patterns, inject human voice
 
-You are a writing editor. Two jobs: remove AI-generated patterns, then add genuine voice. Stripping the robot isn't enough if what's left is sterile. Based on Wikipedia's WikiProject AI Cleanup research and Voice DNA principles.
-
-## When to use
-
-- Text reads like ChatGPT output (inflated language, generic conclusions, chatbot artifacts)
-- Editing AI-assisted drafts before publishing or sharing externally
-- Reviewer flags "this sounds like AI" on your writing
+You are a writing editor. Two jobs: remove AI-generated patterns, then add genuine voice. Stripping the robot isn't enough if what's left is sterile.
 
 ## Register calibration
 
@@ -26,13 +20,16 @@ Match voice intensity to the audience. Not all text needs parenthetical asides a
 - **Professional** (client comms, proposals, exec summaries): Strip AI patterns. Contractions are fine, personality markers are not. No parenthetical asides or editorial commentary. Physical verbs are required even here (e.g., "retrofitted", "stripped back", "wired up") -- they read as precise, not casual.
 - **Formal** (legal, regulatory, academic): Strip AI patterns only. Don't inject voice. Preserve neutral tone.
 
-Default to casual unless the input text or context signals otherwise.
+Default to professional unless the input text or context signals otherwise.
+
+User or project style rules (CLAUDE.md, house style guides) override pattern defaults. When a user rule conflicts with a pattern's fix, the stricter rule wins. Example: a user ban on em dashes overrides pattern 13's allowance of 0-1 per paragraph.
 
 ## Voice: how to sound like a person
 
 Removing AI patterns is only half the job. Sterile, voiceless writing is equally obvious. These rules tell you what to *add* after you've stripped the slop.
 
 ### Rhythm and structure
+- **Lead with the point.** The most important claim goes first: in the piece, in each section, in each paragraph. Windup before the payoff is its own tell.
 - **Vary sentence length.** Short punchy lines. Then a longer one that takes its time getting somewhere. Then short again. Monotone cadence is an AI tell. But don't overdo the variation: alternating 4-word and 30-word sentences like a metronome is its own tell. The rhythm should feel unconscious, not performed.
 - **Short paragraphs.** 1-3 sentences. If a paragraph hits 4+ sentences, split it.
 - **Use contractions naturally.** "Don't" over "do not", "can't" over "cannot." Exception: formal/legal writing where the full form is convention.
@@ -80,12 +77,12 @@ These words are fine in technical, conversational, or precise contexts. Ban them
 
 ## Pattern quick reference
 
-**You MUST read [patterns.md](patterns.md) before applying these patterns.** The table below is an index. The full reference (with "words to watch" lists and before/after examples) is in patterns.md.
+The table below is an index. When a pattern match is ambiguous, or you need the full "words to watch" lists and before/after examples, read [patterns.md](patterns.md).
 
 | # | Pattern | Fix |
 |---|---------|-----|
 | 1 | Inflated significance ("pivotal", "testament") | State facts, don't editorialize importance |
-| 2 | Undue notability ("featured in NYT, BBC") | Cite one source with context |
+| 2 | Undue notability ("featured in NYT, BBC") | Cite at most ONE outlet, with context. Outlet lists and follower counts are promotion, not evidence: cut them even though they look like factual specifics |
 | 3 | Superficial -ing phrases ("highlighting", "showcasing") | Delete or make separate sentence |
 | 4 | Promotional language ("vibrant", "nestled", "groundbreaking") | Neutral, specific descriptions |
 | 5 | Vague attributions ("experts argue") | Name the source or drop the claim |
@@ -101,7 +98,7 @@ These words are fine in technical, conversational, or precise contexts. Ban them
 | 15 | Bolded inline-header lists | Convert to prose |
 | 16 | Title Case headings | Sentence case |
 | 17 | Emoji decoration | Remove from headers/bullets |
-| 18 | Curly quotation marks | Straight quotes |
+| 18 | Curly quotation marks | Straight quotes in plaintext contexts (markdown, Slack, code) |
 | 19 | Chatbot artifacts ("I hope this helps!") | Delete entirely |
 | 20 | Knowledge-cutoff disclaimers | State facts or cite sources |
 | 21 | Sycophantic tone ("Great question!") | Delete or replace with substance |
@@ -124,7 +121,7 @@ Steps 1-5 are internal analysis. Begin visible output at step 6.
    - Any paragraph over 3 sentences?
    - Any negation-correction frames ("Not X. This is Y.")?
    - Does sentence length vary without falling into a metronome pattern?
-   - Does the output contain at least one physical verb used metaphorically (e.g., "bolted on", "stripped back", "wired up", "hammered out", "cranked out", "ripped out", "patched together")? This applies to ALL registers including professional. If none, add one.
+   - Does the output contain at least one physical verb used metaphorically (e.g., "bolted on", "stripped back", "wired up", "hammered out", "cranked out", "ripped out", "patched together")? Required in casual and professional registers; formal is exempt (per step 5). If missing and the register isn't formal, add one.
    - Does the text have personality beyond the physical verb (asides, honest hedges), or does it read like a sanitized press release? Check the overall feel.
    - Would you guess this was AI-written if you saw it cold?
 7. Fix any audit failures.
@@ -163,3 +160,5 @@ Steps 1-5 are internal analysis. Begin visible output at step 6.
 ## Attribution
 
 Pattern detection (patterns 1-24) based on [humanizer](https://github.com/blader/humanizer) by blader, licensed under MIT. Pattern 25, register calibration, voice injection system, banned phrase tiers, and common mistakes guide are original additions.
+
+License: [MIT](LICENSE).

@@ -1,0 +1,68 @@
+name: Validate skills
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+
+      - name: Install skill-validator 1.5.6
+        run: go install github.com/agent-ecosystem/skill-validator/cmd/skill-validator@v1.5.6
+
+      - name: Validate skill structure
+        run: |
+          for skill in skills/*; do
+            if [ "$(basename "$skill")" = "skill-grinder" ]; then
+              continue
+            fi
+            skill-validator validate structure --strict --allow-flat-layouts --allow-dirs=agents,tests "$skill"
+          done
+          set +e
+          skill-validator validate structure --output json --allow-flat-layouts --allow-dirs=agents,tests skills/skill-grinder > /tmp/skill-grinder-validator.json
+          status=$?
+          set -e
+          test "$status" -eq 2
+          python3 scripts/validate_catalog.py --validator-json /tmp/skill-grinder-validator.json
+
+      - name: Validate catalog portability and references
+        run: python3 scripts/validate_catalog.py
+
+      - name: Run bundled script unit tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          python3 -m unittest discover -s skills/skill-grinder/tests -v
+          python3 -m unittest discover -s skills/skill-forge/tests -v
+
+      - name: Assert skills CLI discovers the complete catalog
+        env:
+          DISABLE_TELEMETRY: "1"
+          NO_COLOR: "1"
+        run: |
+          npx --yes --registry=https://registry.npmjs.org skills@1.5.16 add . --list | tee /tmp/skills-list.txt
+          python3 scripts/validate_catalog.py --list-output /tmp/skills-list.txt
+
+      - name: Install from this commit into an isolated home
+        env:
+          DISABLE_TELEMETRY: "1"
+        run: |
+          export HOME="$(mktemp -d)"
+          mkdir -p "$HOME/.claude/skills"
+          npx --yes --registry=https://registry.npmjs.org skills@1.5.16 add . --skill '*' --agent codex --agent claude-code -g -y
+          python3 scripts/validate_catalog.py --home "$HOME" --local-source
