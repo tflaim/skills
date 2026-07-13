@@ -112,23 +112,29 @@ Reviews hit these beats: gut reaction, what works, what does not (with consequen
 
 ### skill-grinder
 
-Autonomous mutation loop that optimizes any existing skill's prompt. Adapted from Andrej Karpathy's [autoresearch methodology](https://www.youtube.com/watch?v=LBMiNFBp0cI) (autonomous experimentation loops applied to prompt engineering instead of ML training code).
+Controlled mutation loop for optimizing an existing skill's prompt. It adapts Andrej Karpathy's [autoresearch methodology](https://www.youtube.com/watch?v=LBMiNFBp0cI) to skill prompts.
 
-The core loop: run a skill repeatedly with test inputs, score every output against binary evals, mutate one thing at a time, keep improvements, discard the rest. Stops when gains plateau or budget is hit.
+The loop establishes a sampled baseline, scores candidate and baseline outputs together on the same inputs, changes one thing at a time, and keeps only supported quality or compression wins. It stops when gains plateau, evidence remains inconclusive, or the budget is reached.
 
 **Key design decisions:**
-- **At least one mechanical eval required** (grep, wc, parse, execute). LLM-only evaluation drifts toward reward hacking.
-- **Holdout inputs** (2+ inputs never seen during optimization) detect overfitting at the end.
-- **Exponential cooldown:** 3 consecutive discards = slow down, 5 = full stop with diagnosis.
-- **Prompt growth tracking:** warns at 40%+ growth from baseline to prevent "lost in the middle" degradation.
-- **Type A/B/C classification** for interactive skills: bypass the interview, grind the output quality.
 
-**Output:** Improved SKILL.md + `results.tsv` score log + `changelog.md` research log of every mutation tried.
+- **Repeated sampling:** defaults to three samples per input from baseline onward.
+- **Anchored comparisons:** LLM-judged evals compare candidate and baseline samples together for the same input.
+- **Mechanical grounding:** at least one eval must be verifiable with code, parsing, or execution.
+- **Narrow scorers:** targeted mutations receive a separate single-axis regression check.
+- **Noise handling:** borderline results are re-sampled and marked inconclusive until they clear a predeclared gate.
+- **Three-way evaluation:** optimization inputs drive mutations, visible validation inputs gate candidates, and externally isolated locked tests check generalization after selection.
+- **Compression discipline:** smaller prompts can win on tied quality, but are not reported as quality improvements.
+- **Validated pair ledger:** every mutation records one explicit verdict per split, input, sample, and criterion, then checks exact coverage before deciding.
+- **Type A/B/C classification:** interactive workflows are tested through their separable output artifacts.
+
+**Output:** An improved `SKILL.md`, `results.tsv`, a frozen pair manifest, a cumulative validated pair ledger, a `changelog.md` research log, and a baseline snapshot in a user-selected run directory outside the target skill.
 
 Includes `references/eval-guide.md` with examples of mechanical vs LLM-judged evals for text, visual, code, and document skills.
 
 **When to use:**
-- A skill works ~70% of the time and you want to close the gap
+
+- An existing skill has repeatable failure patterns you want to reduce
 - You want to systematically identify which instructions are unclear or missing
 - You want a research log that future sessions can continue from
 
