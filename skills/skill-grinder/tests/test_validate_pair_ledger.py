@@ -38,6 +38,7 @@ class PairLedgerTests(unittest.TestCase):
         self.criterion_body = {
             "question": "Did it work?", "pass": "yes", "fail": "no",
             "applicability": "all cases", "verification": "inspect output",
+            "type": "MECHANICAL",
             "applicable_inputs": ["case-1"],
         }
         self.write_contract()
@@ -238,6 +239,20 @@ class PairLedgerTests(unittest.TestCase):
                 result = self.run_validator(commit=True)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(field, result.stderr)
+
+    def test_rejects_untyped_or_all_llm_criteria(self) -> None:
+        for criterion_type, expected in ((None, "type must be"), ("LLM-JUDGED", "at least one MECHANICAL")):
+            with self.subTest(criterion_type=criterion_type):
+                if criterion_type is None:
+                    self.criterion_body.pop("type", None)
+                else:
+                    self.criterion_body["type"] = criterion_type
+                self.write_contract()
+                self.write_single_pair()
+                result = self.run_validator(commit=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stderr)
+                self.criterion_body["type"] = "MECHANICAL"
 
     def test_rejects_partial_resample_batch(self) -> None:
         self.write_contract(samples=2)

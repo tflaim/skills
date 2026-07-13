@@ -119,6 +119,7 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
             fail(f"decision contract input {input_id} must declare optimization or validation split")
         input_hashes[input_id] = payload_sha256(definition)
     criterion_hashes: dict[str, str] = {}
+    mechanical_criteria = 0
     for criterion, definition in criteria.items():
         if not isinstance(definition, dict) or not isinstance(definition.get("applicable_inputs"), list):
             fail(f"decision contract criterion {criterion} must declare applicable_inputs")
@@ -131,7 +132,14 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
         verification = definition.get("verification")
         if not isinstance(verification, (str, dict)) or not verification:
             fail(f"decision contract criterion {criterion} requires verification")
+        criterion_type = definition.get("type")
+        if criterion_type not in {"MECHANICAL", "LLM-JUDGED"}:
+            fail(f"decision contract criterion {criterion} type must be MECHANICAL or LLM-JUDGED")
+        if criterion_type == "MECHANICAL":
+            mechanical_criteria += 1
         criterion_hashes[criterion] = payload_sha256(definition)
+    if mechanical_criteria == 0:
+        fail("decision contract requires at least one MECHANICAL criterion")
     for input_id in inputs:
         if not any(input_id in definition["applicable_inputs"] for definition in criteria.values()):
             fail(f"decision contract input has no applicable criterion: {input_id}")
