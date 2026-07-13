@@ -51,27 +51,66 @@ def positive_int(value: str, field: str, path: Path) -> int:
 
 def pair_key(row: dict[str, str], path: Path) -> tuple[str, str, int, str]:
     for field in MANIFEST_HEADER:
-        if not row[field].strip():
+        value = row[field]
+        if not value.strip():
             fail(f"blank {field} in {path}")
+        if value != value.strip():
+            fail(f"noncanonical whitespace in {field} in {path}: {value!r}")
     if row["split"] not in {"optimization", "validation"}:
         fail(f"invalid split in {path}: {row['split']}")
     return (row["split"], row["input_id"], positive_int(row["sample"], "sample", path), row["criterion"])
 
 
+def check_manifest_commitment(path: Path, manifest_sha256: str) -> None:
+    if not path.exists():
+        fail(f"missing manifest commitment: {path}")
+    committed = path.read_text(encoding="utf-8").strip()
+    if committed != manifest_sha256:
+        fail(
+            f"manifest differs from frozen commitment in {path}: "
+            f"expected {committed}, got {manifest_sha256}"
+        )
+
+
+def create_manifest_commitment(path: Path, manifest_sha256: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8") as handle:
+            handle.write(manifest_sha256 + "\n")
+    except FileExistsError:
+        check_manifest_commitment(path, manifest_sha256)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
-    parser.add_argument("--ledger", required=True, type=Path)
-    parser.add_argument("--experiment", required=True, type=int)
+    parser.add_argument("--manifest-commitment", required=True, type=Path)
+    parser.add_argument("--commit-manifest", action="store_true")
+    parser.add_argument("--ledger", type=Path)
+    parser.add_argument("--experiment", type=int)
     args = parser.parse_args()
-    if args.experiment < 1:
-        fail("experiment must be a positive integer")
 
     manifest_rows = read_tsv(args.manifest, MANIFEST_HEADER)
+    manifest_sha256 = sha256(args.manifest)
     manifest_keys = [pair_key(row, args.manifest) for row in manifest_rows]
     if len(set(manifest_keys)) != len(manifest_keys):
         fail("duplicate pair key in manifest")
     expected = set(manifest_keys)
+    if args.commit_manifest:
+        if args.ledger or args.experiment is not None:
+            fail("--commit-manifest cannot be combined with --ledger or --experiment")
+        create_manifest_commitment(args.manifest_commitment, manifest_sha256)
+        print(json.dumps({
+            "manifest_sha256": manifest_sha256,
+            "rows": len(manifest_rows),
+            "status": "COMMITTED",
+        }, sort_keys=True))
+        return
+    if args.ledger is None or args.experiment is None:
+        fail("validation requires --ledger and --experiment")
+    if args.experiment < 1:
+        fail("experiment must be a positive integer")
+    check_manifest_commitment(args.manifest_commitment, manifest_sha256)
 
     by_experiment: dict[int, list[dict[str, str]]] = {}
     seen: set[tuple[int, str, str, int, str]] = set()
@@ -110,7 +149,7 @@ def main() -> None:
     print(json.dumps({
         "experiment": args.experiment,
         "ledger_sha256": sha256(args.ledger),
-        "manifest_sha256": sha256(args.manifest),
+        "manifest_sha256": manifest_sha256,
         "rows": len(selected),
         "status": "PASS",
         "validated_experiments": sorted(by_experiment),

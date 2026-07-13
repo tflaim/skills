@@ -54,7 +54,7 @@ Take any existing skill, define what "good output" looks like as binary yes/no c
 6. **Run root:** Where should evaluation artifacts be stored? Keep them outside the target skill unless the user explicitly requests otherwise.
 
 **Cost estimate:** Before starting, surface this to the user:
-> Full-budget target-skill invocations: `((optimization_inputs + validation_inputs) x samples_per_input x (1 + budget_cap)) + (locked_tests x samples_per_input x 2)`. The `1` is the baseline, every mutation runs on optimization and validation inputs, and locked tests run only after selection against the original baseline and selected final skill. With 5 optimization inputs, 2 validation inputs, 2 locked tests, 3 samples, and a budget of 12, the maximum is 285 invocations. Early stopping reduces the actual total. Confirm the counts and cost before starting.
+> Planned pre-resampling target-skill invocations: `((optimization_inputs + validation_inputs) x samples_per_input x (1 + budget_cap)) + (locked_tests x samples_per_input x 2)`. The `1` is the baseline, every mutation runs on optimization and validation inputs, and locked tests run only after selection against the original baseline and selected final skill. With 5 optimization inputs, 2 validation inputs, 2 locked tests, 3 samples, and a budget of 12, the planned total is 285 invocations. Early stopping reduces the actual total. Noise re-sampling is additional. Default to at most one additional matched batch for the affected inputs per inconclusive experiment, include that allowance in the approval, and get renewed approval before exceeding it. Confirm the counts, allowance, and cost before starting.
 
 The calibration outputs count toward the optimization baseline when the user confirms the rubric unchanged. If calibration changes an eval or rubric, discard those samples, rebuild the full baseline under the revised regime, and update the estimate with the additional calls.
 
@@ -198,8 +198,8 @@ Run the skill AS-IS before changing anything. This is experiment #0.
 1. Create `[run_root]/skill-grinder-runs/[skill-name]-[date]/` outside the target skill.
 2. Create `results.tsv` with the header row.
 3. Back up the original SKILL.md as `SKILL.md.baseline`
-4. Create `pair-manifest.tsv` from the frozen applicability matrix. Include one row for every optimization or validation input, sample index, and applicable criterion that each mutation must compare. Once baseline execution starts, changing this manifest requires rebaselining.
-5. Create cumulative `pair-ledger.tsv` with only its header. Candidate comparison rows are appended after each mutation.
+4. Create `pair-manifest.tsv` from the frozen applicability matrix. Include one row for every optimization or validation input, sample index, and applicable criterion that each mutation must compare. Before running the baseline, commit it with `python3 <skill-directory>/scripts/validate_pair_ledger.py --manifest pair-manifest.tsv --manifest-commitment pair-manifest.sha256 --commit-manifest`. Changing the manifest after this commitment requires rebaselining.
+5. Create cumulative `pair-ledger.tsv` with only its header. Candidate comparison rows are appended after each mutation. Every experiment requires the frozen `pair-manifest.sha256` commitment.
 6. Run the skill `samples_per_input` times for every optimization and validation input.
 7. Score every output against every applicable eval. For MECHANICAL evals, run the verification command. For LLM-JUDGED evals, use deterministic or low-variance settings when the runtime supports them, and apply the rubric consistently.
 8. Record optimization and validation baseline scores separately.
@@ -267,6 +267,7 @@ This is the core autoresearch loop. Runs autonomously within the budget cap.
    ```bash
    python3 <skill-directory>/scripts/validate_pair_ledger.py \
      --manifest pair-manifest.tsv \
+     --manifest-commitment pair-manifest.sha256 \
      --ledger pair-ledger.tsv \
      --experiment [N]
    ```
@@ -372,6 +373,7 @@ This is a long autonomous process, so drift is a risk. Before adoption, verify:
 Produces these artifacts in `[run_root]/skill-grinder-runs/[skill-name]-[date]/`:
 - `results.tsv`: schema `experiment\toptimization_score\toptimization_max\tvalidation_score\tvalidation_max\tstatus\tdescription\tprompt_length\tlocked_test_result`. After external evaluation, populate the baseline row with its locked score and per-axis totals. Populate the selected final row with `PASS` or `FAIL`, baseline and final totals, and any failed axis names. Do not reduce the decision to one raw score.
 - `pair-manifest.tsv`: frozen expected comparison keys for one mutation experiment.
+- `pair-manifest.sha256`: frozen commitment created before baseline execution and verified before every mutation decision.
 - `pair-ledger.tsv`: cumulative explicit verdict and evidence rows by experiment, split, input, sample, and applicable criterion.
 - `changelog.md`: one section per mutation experiment using the "Write the changelog" format below and recording the validated ledger evidence.
 - `SKILL.md.baseline`: baseline snapshot of the original skill before optimization.
