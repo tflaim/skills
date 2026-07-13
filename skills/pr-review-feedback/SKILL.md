@@ -56,6 +56,8 @@ If the input has no adjudicable claims (e.g. only "CC reviewed this") or no chec
    - run broader checks when the touched surface is shared, user-facing, security-sensitive, or required by repo instructions
    - rerun after fixes
 8. Respond on the PR only when the user has authorized PR writes and the runtime has write access:
+   - treat authorization, runtime capability, and completed action as separate facts; when they differ, state each explicitly
+   - if a requested write did not occur, say so; drafts must describe unperformed code or test work as pending, never completed
    - summarize accepted fixes and commit hash
    - list validation commands
    - mention declined/deferred findings briefly with rationale
