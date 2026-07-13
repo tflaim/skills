@@ -2,7 +2,7 @@
 
 [![skills.sh](https://skills.sh/b/tflaim/skills)](https://skills.sh/tflaim/skills)
 
-Ten portable skills for AI coding agents. Each skill uses the Agent Skills SKILL.md format and is designed to work across Claude Code, Codex, Cursor, and other compatible runtimes.
+Nine portable skills for AI coding agents. Each skill uses the Agent Skills SKILL.md format and is designed to work across Claude Code, Codex, Cursor, and other compatible runtimes.
 
 ## Installation
 
@@ -46,7 +46,6 @@ Skills are instructions to an AI agent with tool access. Review a skill before i
 | [explain-system](#explain-system) | Builds a verified mental model of a technical system |
 | [pr-preflight](#pr-preflight) | Gates commit, push, and PR actions on repository readiness |
 | [pr-review-feedback](#pr-review-feedback) | Adjudicates reviewer claims before code or PR changes |
-| [security-review](#security-review) | Traces attacker-controlled data to high-confidence vulnerabilities |
 | [skill-forge](#skill-forge) | Searches for skill improvements and gates promotion on held-out evidence |
 | [skill-grinder](#skill-grinder) | Runs controlled skill mutations with anchored evaluation |
 | [vet-idea](#vet-idea) | Stress-tests an idea and captures the resulting decisions in a spec |
@@ -87,12 +86,6 @@ Turns reviewer feedback into source claims, verifies each claim against current 
 
 PR writes require user authorization and available write access. Otherwise the skill returns an exact draft response.
 
-### security-review
-
-Finds high-confidence vulnerabilities by tracing attacker-controlled input through validation, framework protections, authorization, and the vulnerable sink. Authentication changes exploit preconditions and severity, but it does not make a vulnerable path safe.
-
-This skill and its reference are adapted from [Sentry's security-review skill](https://github.com/getsentry/skills/tree/main/skills/security-review) and the [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/), under CC BY-SA 4.0.
-
 ### skill-forge
 
 Combines bounded mutation search with explicit validation and promotion gates. It separates Found, Accepted, Promoted, Compressed, and Rejected outcomes, checks whether validation covers observed train failures, and rejects incomparable evidence.
@@ -122,4 +115,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-The repository is MIT by default. The deslop skill retains its attributed MIT license. The security-review skill and its reference retain CC BY-SA 4.0.
+The repository is MIT by default. The deslop skill retains its attributed MIT license.

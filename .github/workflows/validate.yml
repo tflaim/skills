@@ -41,12 +41,14 @@ jobs:
       - name: Validate catalog portability and references
         run: python3 scripts/validate_catalog.py
 
-      - name: Run Skill Forge unit tests
+      - name: Run bundled script unit tests
         env:
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 -m unittest discover -s skills/skill-forge/tests -v
+        run: |
+          python3 -m unittest discover -s skills/skill-grinder/tests -v
+          python3 -m unittest discover -s skills/skill-forge/tests -v
 
-      - name: Assert skills CLI discovers exactly ten skills
+      - name: Assert skills CLI discovers the complete catalog
         env:
           DISABLE_TELEMETRY: "1"
           NO_COLOR: "1"

@@ -4,8 +4,8 @@
   "groupings": [
     {
       "title": "Software delivery",
-      "description": "Prepare, review, and secure changes before they ship.",
-      "skills": ["pr-preflight", "pr-review-feedback", "security-review"]
+      "description": "Prepare and review changes before they ship.",
+      "skills": ["pr-preflight", "pr-review-feedback"]
     },
     {
       "title": "Thinking and review",

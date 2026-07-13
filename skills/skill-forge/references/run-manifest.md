@@ -55,6 +55,8 @@ Targets must be unique, non-overlapping, and occur exactly once. Frontmatter edi
 
 Optional infrastructure_failures fields default to zero and must also match their per-case sum. Any nonzero infrastructure failure invalidates comparison.
 
+Locked-test score rows also require `commitment_sha256`. The helper compares every value with the frozen commitment for that case ID before it can produce `Promoted` or retain `Compressed`.
+
 Aggregate fields must equal the per-case sums. Baseline and candidate evidence must match the run and manifest, bind to their exact skill files, use the same evaluator hash, use the frozen case order, and use identical per-case maximum scores. Stale candidate evidence, a changed evaluator, or a higher raw score with a larger denominator is rejected.
 
 ## Validation adequacy

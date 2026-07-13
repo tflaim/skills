@@ -75,9 +75,9 @@ Do not use exploratory mode for an efficacy claim.
          --validation-adequacy run/validation-adequacy.json \
          --train-score train-score.json \
          --candidate-train-score candidate-train-score.json \
-         --out run/decisions/forge.json
+         --out run/decisions/accepted.json
 
-   Add --test-current and --test-candidate only after validation acceptance. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
+   Run this first without locked-test scores. Only after it returns `Accepted` or `Compressed`, send the immutable decision and exact candidate to the external evaluator. The evaluator verifies the decision's candidate hash before revealing committed test bodies, then returns score rows containing the matching case commitments. Rerun `decide` with `--test-current`, `--test-candidate`, and a new output path such as `run/decisions/final.json`. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
 
 10. Report mode, split counts, validation coverage, exact diff, status, validation delta, locked-test delta when used, prompt-size delta, and remaining failures.
 
@@ -103,7 +103,8 @@ Do not use exploratory mode for an efficacy claim.
 - changelog.md
 - rejected-edits.jsonl
 - candidate skill and receipt
-- decisions/forge.json
+- decisions/accepted.json
+- decisions/final.json when locked tests run
 
 Read [acceptance-policy.md](references/acceptance-policy.md) before making a publication or promotion claim.
 

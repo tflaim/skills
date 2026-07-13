@@ -12,10 +12,10 @@ from pathlib import Path
 
 EXPECTED = {
     "baton", "deslop", "expert-review", "explain-system", "pr-preflight",
-    "pr-review-feedback", "security-review", "skill-forge", "skill-grinder", "vet-idea",
+    "pr-review-feedback", "skill-forge", "skill-grinder", "vet-idea",
 }
 GROUPS = {
-    "Software delivery": ["pr-preflight", "pr-review-feedback", "security-review"],
+    "Software delivery": ["pr-preflight", "pr-review-feedback"],
     "Thinking and review": ["vet-idea", "expert-review", "explain-system"],
     "Agent operations": ["baton", "skill-grinder", "skill-forge"],
     "Writing": ["deslop"],
@@ -136,7 +136,7 @@ def validate_list_output(path: Path) -> None:
     text = ANSI.sub("", path.read_text(encoding="utf-8"))
     match = re.search(r"Found\s+(\d+)\s+skills", text)
     if not match or int(match.group(1)) != len(EXPECTED):
-        fail("skills CLI did not report exactly ten skills")
+        fail(f"skills CLI did not report exactly {len(EXPECTED)} skills")
     listed = set(re.findall(r"^│\s{4}([a-z0-9-]+)\s*$", text, re.MULTILINE))
     if listed != EXPECTED:
         fail(f"skills CLI listed {sorted(listed)}, expected {sorted(EXPECTED)}")

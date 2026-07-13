@@ -89,6 +89,9 @@ class SkillForgeTests(unittest.TestCase):
             {"id": case_id, "score": value, "max_score": maximum, "mandatory_failures": failure}
             for case_id, value, maximum, failure in zip(ids, values, maxima, failures)
         ]
+        if split == "test":
+            for case in cases:
+                case["commitment_sha256"] = manifest["test_commitments"][case["id"]]
         return {
             "schema_version": forge.SCORE_SCHEMA,
             "run_id": manifest["run_id"],
@@ -261,6 +264,14 @@ class SkillForgeTests(unittest.TestCase):
         rows = list(forge.iter_jsonl(run / "cases" / "test-commitments.jsonl"))
         self.assertEqual([row["id"] for row in rows], ["test-a", "test-b"])
         self.assertTrue(all("prompt" not in row for row in rows))
+
+    def test_locked_score_with_mismatched_commitment_is_rejected(self) -> None:
+        _, _, manifest = self.make_run()
+        payload = self.score(manifest, "test", [4, 4])
+        payload["cases"][0]["commitment_sha256"] = "d" * 64
+
+        with self.assertRaisesRegex(forge.SkillForgeError, "commitment does not match"):
+            forge.parse_score(payload, manifest, "test", manifest["skill_sha256"])
 
     def test_quality_lift_and_locked_hold_is_promoted(self) -> None:
         decision = self.decide(

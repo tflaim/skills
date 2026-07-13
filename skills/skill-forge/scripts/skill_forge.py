@@ -209,6 +209,7 @@ def command_init_run(args: argparse.Namespace) -> int:
     write_jsonl(run_dir / "cases" / "test-commitments.jsonl", test_commitments)
     split_hashes["test"] = payload_hash(test_commitments)
     split_case_ids["test"] = [row["id"] for row in test_commitments]
+    test_commitment_map = {row["id"]: row["commitment_sha256"] for row in test_commitments}
     manifest = {
         "schema_version": MANIFEST_SCHEMA,
         "run_id": run_id,
@@ -217,6 +218,7 @@ def command_init_run(args: argparse.Namespace) -> int:
         "skill_sha256": file_hash(skill),
         "split_sha256": split_hashes,
         "split_case_ids": split_case_ids,
+        "test_commitments": test_commitment_map,
         "limits": {
             "max_edits": args.max_edits,
             "max_edit_chars": args.max_edit_chars,
@@ -258,6 +260,9 @@ def load_run(run_dir: str | Path) -> tuple[Path, dict[str, Any]]:
     test_ids = [row["id"] for row in test_commitments]
     if test_ids != manifest["split_case_ids"].get("test"):
         raise SkillForgeError("locked-test case ids differ from the manifest")
+    test_commitment_map = {row["id"]: row["commitment_sha256"] for row in test_commitments}
+    if test_commitment_map != manifest.get("test_commitments"):
+        raise SkillForgeError("locked-test commitments do not match the manifest")
     all_ids = [item for ids in manifest["split_case_ids"].values() for item in ids]
     if len(all_ids) != len(set(all_ids)):
         raise SkillForgeError("case ids must be unique across all splits")
@@ -380,6 +385,13 @@ def parse_score(
         if not isinstance(row, dict):
             raise SkillForgeError(f"score cases[{index}] must be an object")
         case_id = require_string(row.get("id"), f"score cases[{index}].id")
+        if expected_split == "test":
+            commitment = require_sha256(
+                row.get("commitment_sha256"),
+                f"score cases[{index}].commitment_sha256",
+            )
+            if commitment != manifest["test_commitments"].get(case_id):
+                raise SkillForgeError(f"locked-test commitment does not match case {case_id}")
         score = parse_nonnegative_number(row.get("score"), f"score cases[{index}].score")
         maximum = parse_nonnegative_number(row.get("max_score"), f"score cases[{index}].max_score")
         failures = parse_nonnegative_int(row.get("mandatory_failures"), f"score cases[{index}].mandatory_failures")
