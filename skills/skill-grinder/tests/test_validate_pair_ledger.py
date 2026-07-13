@@ -10,6 +10,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "validate_pair_ledger.py"
 MANIFEST_HEADER = "split\tinput_id\tsample\tcriterion\n"
 LEDGER_HEADER = "experiment\tsplit\tinput_id\tsample\tcriterion\tverdict\tevidence\n"
+RESAMPLE_HEADER = "experiment\tresample_batch\tsplit\tinput_id\tsample\tcriterion\tverdict\tevidence\n"
 
 
 class PairLedgerTests(unittest.TestCase):
@@ -19,6 +20,8 @@ class PairLedgerTests(unittest.TestCase):
         self.manifest = self.root / "pair-manifest.tsv"
         self.commitment = self.root / "pair-manifest.sha256"
         self.ledger = self.root / "pair-ledger.tsv"
+        self.resample_ledger = self.root / "resample-ledger.tsv"
+        self.resample_ledger.write_text(RESAMPLE_HEADER, encoding="utf-8")
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -35,7 +38,14 @@ class PairLedgerTests(unittest.TestCase):
         if commit:
             command.append("--commit-manifest")
         else:
-            command.extend(["--ledger", str(self.ledger), "--experiment", str(experiment)])
+            command.extend([
+                "--ledger",
+                str(self.ledger),
+                "--resample-ledger",
+                str(self.resample_ledger),
+                "--experiment",
+                str(experiment),
+            ])
         return subprocess.run(
             command,
             text=True,
@@ -91,6 +101,33 @@ class PairLedgerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("noncanonical whitespace", result.stderr)
         self.assertFalse(self.commitment.exists())
+
+    def test_accepts_declared_resample_batch(self) -> None:
+        self.write_single_pair()
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.resample_ledger.write_text(
+            RESAMPLE_HEADER + "1\t1\toptimization\tcase-1\t1\tquality\tBETTER\trepeated evidence\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_validator(1)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('"resample_batches": ["1:1"]', result.stdout)
+
+    def test_rejects_missing_trailing_column_without_traceback(self) -> None:
+        self.write_single_pair()
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.ledger.write_text(
+            LEDGER_HEADER + "1\toptimization\tcase-1\t1\tquality\tSAME\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_validator(1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("wrong number of columns", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
