@@ -130,7 +130,11 @@ def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, obj
             if not isinstance(definition.get(field), str) or not definition[field].strip():
                 fail(f"decision contract criterion {criterion} requires nonempty {field}")
         verification = definition.get("verification")
-        if not isinstance(verification, (str, dict)) or not verification:
+        if (
+            not isinstance(verification, (str, dict))
+            or not verification
+            or (isinstance(verification, str) and not verification.strip())
+        ):
             fail(f"decision contract criterion {criterion} requires verification")
         criterion_type = definition.get("type")
         if criterion_type not in {"MECHANICAL", "LLM-JUDGED"}:

@@ -254,6 +254,16 @@ class PairLedgerTests(unittest.TestCase):
                 self.assertIn(expected, result.stderr)
                 self.criterion_body["type"] = "MECHANICAL"
 
+    def test_rejects_blank_mechanical_verification(self) -> None:
+        self.criterion_body["verification"] = "   "
+        self.write_contract()
+        self.write_single_pair()
+
+        result = self.run_validator(commit=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires verification", result.stderr)
+
     def test_rejects_partial_resample_batch(self) -> None:
         self.write_contract(samples=2)
         self.write_single_pair(samples=2)
