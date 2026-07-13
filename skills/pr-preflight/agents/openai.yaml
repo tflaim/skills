@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Preflight"
+  short_description: "Pre-push readiness gate for PR work."
+  default_prompt: "Use $pr-preflight to check this branch before I commit, push, or open a PR."

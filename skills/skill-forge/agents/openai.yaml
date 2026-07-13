@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Forge"
+  short_description: "Search and validate skill improvements"
+  default_prompt: "Use $skill-forge to optimize this skill with held-out validation and explicit promotion gates."

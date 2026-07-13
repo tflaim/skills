@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Review Feedback"
+  short_description: "Adjudicate PR review feedback before acting"
+  default_prompt: "Use $pr-review-feedback to adjudicate this PR review feedback before making code changes."

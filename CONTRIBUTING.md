@@ -1,33 +1,49 @@
 # Contributing
 
-Contributions are welcome! Here's how to add or improve skills.
+Contributions should remain portable, focused, and independently verifiable.
 
-## Adding a New Skill
+## Add or change a skill
 
-1. Create a directory under `skills/` with a descriptive, hyphenated name
-2. Add a `SKILL.md` with YAML frontmatter:
-   ```yaml
-   ---
-   name: your-skill-name
-   description: One-line description of when to use this skill
-   ---
-   ```
-3. Keep `SKILL.md` under 500 lines. Use a `references/` subdirectory for supplementary docs.
-4. Add executable utilities in a `scripts/` subdirectory if needed.
-5. Update the skills table in `README.md`.
+1. Create or edit a lower-case, hyphenated directory under skills.
+2. Include SKILL.md with a matching name and a description that explains when the skill should trigger.
+3. Keep SKILL.md under 500 lines. Put supplementary guidance in references and executable utilities in scripts.
+4. Put Codex UI metadata in agents/openai.yaml using the interface mapping.
+5. Reference every bundled file from SKILL.md or explain why it is development-only.
+6. Update README.md and skills.sh.json when catalog membership changes.
 
-## Skill Naming
+## Portability gate
 
-- Lowercase letters, numbers, and hyphens only
-- Max 64 characters
-- Prefer gerund form (e.g., `analyzing-transcripts`) or imperative form (e.g., `review-backlog`)
+Public skills must not contain:
 
-## Pull Requests
+- absolute user or home-directory paths
+- company, product, repository, ticket, or branch conventions that are not intrinsic to the skill
+- local run names or evaluation workspaces
+- private sibling dependencies
+- backup snapshots, .DS_Store, __pycache__, or .pyc files
+- runtime-specific tool syntax when capability-based language works
 
-- One skill per PR (unless tightly coupled)
-- Include a brief description of the skill's purpose and trigger conditions
-- Test the skill locally before submitting
+Keep machine-local evaluation artifacts outside the repository.
 
-## Code of Conduct
+## Validation gate
 
-Be respectful. Focus on quality and usefulness.
+Before opening a PR:
+
+1. Validate structure and internal links for every changed skill.
+2. Run deterministic tests for bundled scripts.
+3. Compare the candidate against the current version on focused train, validation, and unseen holdout cases.
+4. Include at least one mechanical assertion for each changed behavior.
+5. Check trigger routing with positive queries and difficult near-misses.
+6. Confirm no mandatory failures or portability violations remain.
+7. Record the exact validation commands and a concise evidence summary in the PR.
+
+Use the smallest evaluation that can falsify the intended claim. Expand it when results are noisy or the change affects several behavior axes.
+
+## Pull requests
+
+Prefer one coherent change per PR. Several skills may share a PR when the delivery unit is a catalog migration or coordinated portability release, but each skill still needs independent validation evidence.
+
+Preserve attribution and per-skill licenses. Do not include raw local evaluation artifacts.
+
+## Code of conduct
+
+Be respectful. Focus review on correctness, portability, and usefulness.

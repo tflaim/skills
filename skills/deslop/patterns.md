@@ -204,7 +204,7 @@
 
 ### 18. Curly quotation marks
 
-ChatGPT uses curly quotes (\u201c...\u201d) instead of straight quotes ("..."). Replace with straight quotes for consistency.
+ChatGPT uses curly quotes (\u201c...\u201d) instead of straight quotes ("..."). In plaintext contexts (markdown, Slack, code, plain email), replace with straight quotes. In typeset or word-processor documents (Word, Google Docs, published pages), curly quotes are normal human typography; leave them alone.
 
 ---
 
