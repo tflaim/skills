@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -142,7 +143,15 @@ def validate_list_output(path: Path) -> None:
         fail(f"skills CLI listed {sorted(listed)}, expected {sorted(EXPECTED)}")
 
 
-def validate_install(home: Path) -> None:
+def directory_snapshot(directory: Path) -> dict[str, str]:
+    return {
+        str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in directory.rglob("*")
+        if path.is_file() and path.name not in FORBIDDEN_NAMES and path.suffix != ".pyc"
+    }
+
+
+def validate_install(home: Path, root: Path, *, local_source: bool = False) -> None:
     canonical_root = home / ".agents" / "skills"
     canonical = {path.name for path in canonical_root.iterdir() if path.is_dir()}
     if canonical != EXPECTED:
@@ -154,7 +163,11 @@ def validate_install(home: Path) -> None:
             fail(f"Claude install is not a symlink: {link}")
         if link.resolve() != (canonical_root / skill).resolve():
             fail(f"Claude symlink does not target canonical copy: {link}")
+        if local_source and directory_snapshot(canonical_root / skill) != directory_snapshot(root / "skills" / skill):
+            fail(f"local install differs from checked-out source: {skill}")
     lock_path = home / ".agents" / ".skill-lock.json"
+    if local_source and not lock_path.exists():
+        return
     try:
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -187,6 +200,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--list-output", type=Path)
     parser.add_argument("--home", type=Path)
+    parser.add_argument("--local-source", action="store_true")
     parser.add_argument("--validator-json", type=Path)
     args = parser.parse_args()
     try:
@@ -194,7 +208,7 @@ def main() -> int:
         if args.list_output:
             validate_list_output(args.list_output)
         if args.home:
-            validate_install(args.home.resolve())
+            validate_install(args.home.resolve(), args.root.resolve(), local_source=args.local_source)
         if args.validator_json:
             validate_known_validator_warning(args.validator_json)
     except (ValidationError, OSError, json.JSONDecodeError) as exc:

@@ -60,10 +60,8 @@ jobs:
       - name: Install from this commit into an isolated home
         env:
           DISABLE_TELEMETRY: "1"
-          SOURCE_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          SOURCE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           export HOME="$(mktemp -d)"
           mkdir -p "$HOME/.claude/skills"
-          npx --yes --registry=https://registry.npmjs.org skills@1.5.16 add "${SOURCE_REPO}#${SOURCE_REF}" --skill '*' --agent codex --agent claude-code -g -y
-          python3 scripts/validate_catalog.py --home "$HOME"
+          npx --yes --registry=https://registry.npmjs.org skills@1.5.16 add . --skill '*' --agent codex --agent claude-code -g -y
+          python3 scripts/validate_catalog.py --home "$HOME" --local-source
