@@ -101,6 +101,8 @@ The bundled standard-library helper is self-contained:
 
 Runs a controlled mutation loop against an existing skill. Baseline and candidate samples are compared on the same inputs, narrow changes receive focused regression checks, borderline results are resampled, and compression wins are kept separate from quality claims.
 
+Adapted from Andrej Karpathy's [autoresearch methodology](https://www.youtube.com/watch?v=LBMiNFBp0cI), applying autonomous experimentation loops to prompt engineering.
+
 It produces an auditable run directory outside the target skill, including the frozen pair manifest, pair ledger, results, and changelog.
 
 ### vet-idea

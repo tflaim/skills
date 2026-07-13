@@ -59,6 +59,8 @@ Locked-test score rows also require `commitment_sha256`. The helper compares eve
 
 Aggregate fields must equal the per-case sums. Baseline and candidate evidence must match the run and manifest, bind to their exact skill files, use the same evaluator hash, use the frozen case order, and use identical per-case maximum scores. Stale candidate evidence, a changed evaluator, or a higher raw score with a larger denominator is rejected.
 
+Decision artifacts contain canonical payload hashes for every train, validation, and locked-test score they consume. A final locked-test decision also contains and verifies the canonical payload hash of the prior Accepted or Compressed decision, so promotion cannot bypass or silently substitute the accepted-stage evidence.
+
 ## Validation adequacy
 
 check-validation identifies baseline train cases below their maximum score, reads their tags from the frozen train split, and confirms that those tags appear in validation. Every failed train case must have at least one tag.

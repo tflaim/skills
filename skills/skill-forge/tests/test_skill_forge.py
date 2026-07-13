@@ -198,24 +198,26 @@ class SkillForgeTests(unittest.TestCase):
                 f"{mode}-test-candidate.json",
                 self.score(manifest, "test", test_values[1], skill_sha256=candidate_sha256),
             )
-        out = run / "decisions" / "forge.json"
-        forge.command_decide(
-            argparse.Namespace(
-                mode=mode,
-                run_dir=str(run),
-                current=str(current),
-                candidate=str(candidate_score),
-                current_skill=str(skill),
-                candidate_skill=str(candidate),
-                candidate_receipt=str(receipt),
-                validation_adequacy=str(evidence["adequacy"]),
-                train_score=str(evidence["train"]),
-                candidate_train_score=str(evidence["candidate_train"]),
-                test_current=str(test_current) if test_current else None,
-                test_candidate=str(test_candidate) if test_candidate else None,
-                out=str(out),
-            )
+        common = dict(
+            mode=mode, run_dir=str(run), current=str(current), candidate=str(candidate_score),
+            current_skill=str(skill), candidate_skill=str(candidate), candidate_receipt=str(receipt),
+            validation_adequacy=str(evidence["adequacy"]), train_score=str(evidence["train"]),
+            candidate_train_score=str(evidence["candidate_train"]),
         )
+        out = run / "decisions" / "forge.json"
+        if test_values:
+            accepted = run / "decisions" / "accepted.json"
+            forge.command_decide(argparse.Namespace(
+                **common, test_current=None, test_candidate=None, accepted_decision=None, out=str(accepted),
+            ))
+            forge.command_decide(argparse.Namespace(
+                **common, test_current=str(test_current), test_candidate=str(test_candidate),
+                accepted_decision=str(accepted), out=str(out),
+            ))
+        else:
+            forge.command_decide(argparse.Namespace(
+                **common, test_current=None, test_candidate=None, accepted_decision=None, out=str(out),
+            ))
         return forge.load_json(out)
 
     def test_quality_validation_lift_is_accepted(self) -> None:
@@ -281,6 +283,35 @@ class SkillForgeTests(unittest.TestCase):
             test_values=([4, 4], [4, 4]),
         )
         self.assertEqual(decision["status"], "Promoted")
+        self.assertIsNotNone(decision["current_train_sha256"])
+        self.assertIsNotNone(decision["candidate_train_sha256"])
+        self.assertIsNotNone(decision["current_test_sha256"])
+        self.assertIsNotNone(decision["candidate_test_sha256"])
+        self.assertIsNotNone(decision["accepted_decision_sha256"])
+
+    def test_locked_stage_rejects_substituted_accepted_candidate(self) -> None:
+        decision = self.decide(mode="quality", current_values=[4, 4], candidate_values=[5, 4])
+        expected_fields = {
+            field: decision[field]
+            for field in (
+                "current_skill_sha256", "candidate_skill_sha256",
+                "current_validation_sha256", "candidate_validation_sha256",
+                "current_train_sha256", "candidate_train_sha256",
+                "validation_adequacy_sha256", "candidate_receipt_sha256",
+            )
+        }
+        substituted = dict(decision)
+        substituted["candidate_skill_sha256"] = "e" * 64
+        substituted.pop("decision_sha256")
+        substituted["decision_sha256"] = forge.payload_hash(substituted)
+
+        with self.assertRaisesRegex(forge.SkillForgeError, "does not match candidate_skill_sha256"):
+            forge.validate_accepted_decision(
+                substituted,
+                {"run_id": decision["run_id"], "manifest_sha256": decision["manifest_sha256"]},
+                "quality",
+                expected_fields,
+            )
 
     def test_train_only_lift_is_found(self) -> None:
         self.assertEqual(self.decide(mode="quality", current_values=[4, 4], candidate_values=[4, 4])["status"], "Found")
@@ -324,16 +355,21 @@ class SkillForgeTests(unittest.TestCase):
                 skill_sha256=candidate_sha256,
             ),
         )
-        out = run / "decisions" / "forge.json"
-        forge.command_decide(
-            argparse.Namespace(
-                mode="quality", run_dir=str(run), current=str(current), candidate=str(candidate_score),
-                current_skill=str(skill), candidate_skill=str(candidate), candidate_receipt=str(receipt),
-                validation_adequacy=str(evidence["adequacy"]), train_score=str(evidence["train"]),
-                candidate_train_score=str(evidence["candidate_train"]), test_current=str(test_current),
-                test_candidate=str(test_candidate), out=str(out),
-            )
+        common = dict(
+            mode="quality", run_dir=str(run), current=str(current), candidate=str(candidate_score),
+            current_skill=str(skill), candidate_skill=str(candidate), candidate_receipt=str(receipt),
+            validation_adequacy=str(evidence["adequacy"]), train_score=str(evidence["train"]),
+            candidate_train_score=str(evidence["candidate_train"]),
         )
+        accepted = run / "decisions" / "accepted.json"
+        forge.command_decide(argparse.Namespace(
+            **common, test_current=None, test_candidate=None, accepted_decision=None, out=str(accepted),
+        ))
+        out = run / "decisions" / "forge.json"
+        forge.command_decide(argparse.Namespace(
+            **common, test_current=str(test_current), test_candidate=str(test_candidate),
+            accepted_decision=str(accepted), out=str(out),
+        ))
         decision = forge.load_json(out)
         self.assertEqual(decision["status"], "Accepted")
         self.assertIn("mandatory failures", decision["reason"])

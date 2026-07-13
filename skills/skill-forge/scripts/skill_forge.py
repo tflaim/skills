@@ -490,6 +490,31 @@ def validate_receipt(receipt: Any, manifest: dict[str, Any], candidate_skill: Pa
             raise SkillForgeError(f"candidate receipt does not match {field}")
 
 
+def validate_accepted_decision(
+    decision: Any,
+    manifest: dict[str, Any],
+    mode: str,
+    expected: dict[str, str],
+) -> None:
+    if not isinstance(decision, dict) or decision.get("schema_version") != DECISION_SCHEMA:
+        raise SkillForgeError(f"accepted decision must use {DECISION_SCHEMA}")
+    claimed_hash = require_sha256(decision.get("decision_sha256"), "accepted decision_sha256")
+    bare = dict(decision)
+    bare.pop("decision_sha256", None)
+    if payload_hash(bare) != claimed_hash:
+        raise SkillForgeError("accepted decision hash is invalid")
+    if decision.get("run_id") != manifest["run_id"] or decision.get("manifest_sha256") != manifest["manifest_sha256"]:
+        raise SkillForgeError("accepted decision does not match the frozen run")
+    if decision.get("mode") != mode:
+        raise SkillForgeError("accepted decision mode does not match the run")
+    allowed_status = "Compressed" if mode == "compression" else "Accepted"
+    if decision.get("status") != allowed_status or decision.get("test_delta") is not None:
+        raise SkillForgeError(f"locked testing requires a prior {allowed_status} decision without test evidence")
+    for field, value in expected.items():
+        if decision.get(field) != value:
+            raise SkillForgeError(f"accepted decision does not match {field}")
+
+
 def command_decide(args: argparse.Namespace) -> int:
     root, manifest = load_run(args.run_dir)
     if args.mode and args.mode != manifest["mode"]:
@@ -509,14 +534,16 @@ def command_decide(args: argparse.Namespace) -> int:
     validate_comparable(current, candidate)
     if current.mandatory_failures:
         raise SkillForgeError("baseline validation evidence has mandatory failures")
+    train_payload = load_json(args.train_score)
+    candidate_train_payload = load_json(args.candidate_train_score)
     adequacy_payload = load_json(args.validation_adequacy)
-    recomputed = check_validation_adequacy(load_json(args.train_score), root, manifest)
+    recomputed = check_validation_adequacy(train_payload, root, manifest)
     if adequacy_payload != recomputed:
         raise SkillForgeError("validation adequacy artifact failed recomputation")
     if mode != "exploratory" and not recomputed["adequate"]:
         raise SkillForgeError("validation does not cover observed train failure tags")
-    train_current = parse_score(load_json(args.train_score), manifest, "train", manifest["skill_sha256"])
-    train_candidate = parse_score(load_json(args.candidate_train_score), manifest, "train", candidate_sha256)
+    train_current = parse_score(train_payload, manifest, "train", manifest["skill_sha256"])
+    train_candidate = parse_score(candidate_train_payload, manifest, "train", candidate_sha256)
     validate_comparable(train_current, train_candidate)
     if train_candidate.mandatory_failures:
         raise SkillForgeError("candidate train evidence has mandatory failures")
@@ -535,6 +562,9 @@ def command_decide(args: argparse.Namespace) -> int:
     reason = "candidate did not satisfy the selected mode"
     validation_delta = candidate.score - current.score
     test_delta: float | None = None
+    test_current_payload: Any = None
+    test_candidate_payload: Any = None
+    accepted_decision_payload: Any = None
     if candidate.mandatory_failures:
         reason = "candidate has mandatory validation failures"
     elif mode == "exploratory":
@@ -557,13 +587,28 @@ def command_decide(args: argparse.Namespace) -> int:
     if args.test_current or args.test_candidate:
         if not args.test_current or not args.test_candidate:
             raise SkillForgeError("both locked-test scores are required")
+        if not getattr(args, "accepted_decision", None):
+            raise SkillForgeError("locked-test scores require the prior accepted decision")
+        accepted_decision_payload = load_json(args.accepted_decision)
+        validate_accepted_decision(accepted_decision_payload, manifest, mode, {
+            "current_skill_sha256": file_hash(current_skill),
+            "candidate_skill_sha256": candidate_sha256,
+            "current_validation_sha256": payload_hash(current_payload),
+            "candidate_validation_sha256": payload_hash(candidate_payload),
+            "current_train_sha256": payload_hash(train_payload),
+            "candidate_train_sha256": payload_hash(candidate_train_payload),
+            "validation_adequacy_sha256": payload_hash(adequacy_payload),
+            "candidate_receipt_sha256": payload_hash(receipt_payload),
+        })
+        test_current_payload = load_json(args.test_current)
+        test_candidate_payload = load_json(args.test_candidate)
         test_current = parse_score(
-            load_json(args.test_current),
+            test_current_payload,
             manifest,
             "test",
             manifest["skill_sha256"],
         )
-        test_candidate = parse_score(load_json(args.test_candidate), manifest, "test", candidate_sha256)
+        test_candidate = parse_score(test_candidate_payload, manifest, "test", candidate_sha256)
         validate_comparable(test_current, test_candidate)
         if test_current.mandatory_failures:
             raise SkillForgeError("baseline locked-test evidence has mandatory failures")
@@ -578,6 +623,8 @@ def command_decide(args: argparse.Namespace) -> int:
             )
         elif status == "Compressed" and (test_candidate.mandatory_failures or test_delta < 0):
             status, reason = "Rejected", "compression candidate regressed on locked test"
+    elif getattr(args, "accepted_decision", None):
+        raise SkillForgeError("accepted decision is only valid with both locked-test scores")
     decision = {
         "schema_version": DECISION_SCHEMA,
         "run_id": manifest["run_id"],
@@ -592,6 +639,11 @@ def command_decide(args: argparse.Namespace) -> int:
         "candidate_skill_sha256": file_hash(candidate_skill),
         "current_validation_sha256": payload_hash(current_payload),
         "candidate_validation_sha256": payload_hash(candidate_payload),
+        "current_train_sha256": payload_hash(train_payload),
+        "candidate_train_sha256": payload_hash(candidate_train_payload),
+        "current_test_sha256": payload_hash(test_current_payload) if test_current_payload is not None else None,
+        "candidate_test_sha256": payload_hash(test_candidate_payload) if test_candidate_payload is not None else None,
+        "accepted_decision_sha256": payload_hash(accepted_decision_payload) if accepted_decision_payload is not None else None,
         "validation_adequacy_sha256": payload_hash(adequacy_payload),
         "candidate_receipt_sha256": payload_hash(receipt_payload),
     }
@@ -641,6 +693,7 @@ def build_parser() -> argparse.ArgumentParser:
     decide.add_argument("--candidate-train-score", required=True)
     decide.add_argument("--test-current")
     decide.add_argument("--test-candidate")
+    decide.add_argument("--accepted-decision")
     decide.add_argument("--out", required=True)
     decide.set_defaults(func=command_decide)
     return parser

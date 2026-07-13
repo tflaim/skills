@@ -77,7 +77,7 @@ Do not use exploratory mode for an efficacy claim.
          --candidate-train-score candidate-train-score.json \
          --out run/decisions/accepted.json
 
-   Run this first without locked-test scores. Only after it returns `Accepted` or `Compressed`, send the immutable decision and exact candidate to the external evaluator. The evaluator verifies the decision's candidate hash before revealing committed test bodies, then returns score rows containing the matching case commitments. Rerun `decide` with `--test-current`, `--test-candidate`, and a new output path such as `run/decisions/final.json`. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
+   Run this first without locked-test scores. Only after it returns `Accepted` or `Compressed`, send the immutable decision and exact candidate to the external evaluator. The evaluator verifies the decision's candidate hash before revealing committed test bodies, then returns score rows containing the matching case commitments. Rerun `decide` with `--accepted-decision run/decisions/accepted.json`, `--test-current`, `--test-candidate`, and a new output path such as `run/decisions/final.json`. The helper verifies the accepted-stage decision and binds every consumed train, validation, and locked-test score payload into the final decision. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
 
 10. Report mode, split counts, validation coverage, exact diff, status, validation delta, locked-test delta when used, prompt-size delta, and remaining failures.
 
