@@ -24,6 +24,9 @@ class SkillForgeTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.stdout = sys.stdout
         sys.stdout = io.StringIO()
+        self.test_auth_key = b"external-evaluator-secret-key-32-bytes"
+        self.test_auth_key_path = self.root / "evaluator.key"
+        self.test_auth_key_path.write_bytes(self.test_auth_key)
 
     def tearDown(self) -> None:
         sys.stdout = self.stdout
@@ -92,7 +95,7 @@ class SkillForgeTests(unittest.TestCase):
         if split == "test":
             for case in cases:
                 case["commitment_sha256"] = manifest["test_commitments"][case["id"]]
-        return {
+        payload = {
             "schema_version": forge.SCORE_SCHEMA,
             "run_id": manifest["run_id"],
             "manifest_sha256": manifest["manifest_sha256"],
@@ -104,6 +107,9 @@ class SkillForgeTests(unittest.TestCase):
             "mandatory_failures": sum(failures),
             "cases": cases,
         }
+        if split == "test":
+            payload["evaluator_hmac_sha256"] = forge.score_hmac(payload, self.test_auth_key)
+        return payload
 
     def make_candidate(self, skill: Path, run: Path, replacement: str = "New rule.") -> tuple[Path, Path]:
         edits = self.write_json(
@@ -208,15 +214,17 @@ class SkillForgeTests(unittest.TestCase):
         if test_values:
             accepted = run / "decisions" / "accepted.json"
             forge.command_decide(argparse.Namespace(
-                **common, test_current=None, test_candidate=None, accepted_decision=None, out=str(accepted),
+                **common, test_current=None, test_candidate=None, accepted_decision=None,
+                test_auth_key=None, out=str(accepted),
             ))
             forge.command_decide(argparse.Namespace(
                 **common, test_current=str(test_current), test_candidate=str(test_candidate),
-                accepted_decision=str(accepted), out=str(out),
+                accepted_decision=str(accepted), test_auth_key=str(self.test_auth_key_path), out=str(out),
             ))
         else:
             forge.command_decide(argparse.Namespace(
-                **common, test_current=None, test_candidate=None, accepted_decision=None, out=str(out),
+                **common, test_current=None, test_candidate=None, accepted_decision=None,
+                test_auth_key=None, out=str(out),
             ))
         return forge.load_json(out)
 
@@ -271,9 +279,18 @@ class SkillForgeTests(unittest.TestCase):
         _, _, manifest = self.make_run()
         payload = self.score(manifest, "test", [4, 4])
         payload["cases"][0]["commitment_sha256"] = "d" * 64
+        payload["evaluator_hmac_sha256"] = forge.score_hmac(payload, self.test_auth_key)
 
         with self.assertRaisesRegex(forge.SkillForgeError, "commitment does not match"):
-            forge.parse_score(payload, manifest, "test", manifest["skill_sha256"])
+            forge.parse_score(payload, manifest, "test", manifest["skill_sha256"], self.test_auth_key)
+
+    def test_locked_score_with_forged_authentication_is_rejected(self) -> None:
+        _, _, manifest = self.make_run()
+        payload = self.score(manifest, "test", [4, 4])
+        payload["score"] = 9
+
+        with self.assertRaisesRegex(forge.SkillForgeError, "authentication failed"):
+            forge.parse_score(payload, manifest, "test", manifest["skill_sha256"], self.test_auth_key)
 
     def test_quality_lift_and_locked_hold_is_promoted(self) -> None:
         decision = self.decide(
@@ -363,12 +380,13 @@ class SkillForgeTests(unittest.TestCase):
         )
         accepted = run / "decisions" / "accepted.json"
         forge.command_decide(argparse.Namespace(
-            **common, test_current=None, test_candidate=None, accepted_decision=None, out=str(accepted),
+            **common, test_current=None, test_candidate=None, accepted_decision=None,
+            test_auth_key=None, out=str(accepted),
         ))
         out = run / "decisions" / "forge.json"
         forge.command_decide(argparse.Namespace(
             **common, test_current=str(test_current), test_candidate=str(test_candidate),
-            accepted_decision=str(accepted), out=str(out),
+            accepted_decision=str(accepted), test_auth_key=str(self.test_auth_key_path), out=str(out),
         ))
         decision = forge.load_json(out)
         self.assertEqual(decision["status"], "Accepted")

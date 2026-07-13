@@ -57,6 +57,8 @@ Optional infrastructure_failures fields default to zero and must also match thei
 
 Locked-test score rows also require `commitment_sha256`. The helper compares every value with the frozen commitment for that case ID before it can produce `Promoted` or retain `Compressed`.
 
+The complete locked-test score object also requires `evaluator_hmac_sha256`, computed as HMAC-SHA-256 over canonical JSON after removing that signature field. The external evaluator owns a secret key of at least 32 bytes, keeps it outside the optimizer context, and supplies its path only when it runs the final decision. A self-declared evaluator hash or copied case commitment is not authentication.
+
 Aggregate fields must equal the per-case sums. Baseline and candidate evidence must match the run and manifest, bind to their exact skill files, use the same evaluator hash, use the frozen case order, and use identical per-case maximum scores. Stale candidate evidence, a changed evaluator, or a higher raw score with a larger denominator is rejected.
 
 Decision artifacts contain canonical payload hashes for every train, validation, and locked-test score they consume. A final locked-test decision also contains and verifies the canonical payload hash of the prior Accepted or Compressed decision, so promotion cannot bypass or silently substitute the accepted-stage evidence.

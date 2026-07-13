@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import math
 import re
@@ -67,6 +68,22 @@ def canonical_json(value: Any) -> str:
 
 def payload_hash(value: Any) -> str:
     return hashlib.sha256(canonical_json(value).encode()).hexdigest()
+
+
+def score_hmac(payload: dict[str, Any], key: bytes) -> str:
+    unsigned = dict(payload)
+    unsigned.pop("evaluator_hmac_sha256", None)
+    return hmac.new(key, canonical_json(unsigned).encode(), hashlib.sha256).hexdigest()
+
+
+def load_auth_key(path: str | Path) -> bytes:
+    try:
+        key = Path(path).expanduser().read_bytes()
+    except OSError as exc:
+        raise SkillForgeError(f"cannot read evaluator authentication key {path}: {exc}") from exc
+    if len(key) < 32:
+        raise SkillForgeError("evaluator authentication key must contain at least 32 bytes")
+    return key
 
 
 def file_hash(path: str | Path) -> str:
@@ -362,6 +379,7 @@ def parse_score(
     manifest: dict[str, Any],
     expected_split: str,
     expected_skill_sha256: str,
+    test_auth_key: bytes | None = None,
 ) -> Score:
     if not isinstance(payload, dict) or payload.get("schema_version") != SCORE_SCHEMA:
         raise SkillForgeError(f"score file must use {SCORE_SCHEMA}")
@@ -371,6 +389,12 @@ def parse_score(
         raise SkillForgeError("score file does not match the run id")
     if payload.get("manifest_sha256") != manifest["manifest_sha256"]:
         raise SkillForgeError("score file does not match the run manifest")
+    if expected_split == "test":
+        if test_auth_key is None:
+            raise SkillForgeError("locked-test score requires evaluator authentication")
+        signature = require_sha256(payload.get("evaluator_hmac_sha256"), "evaluator_hmac_sha256")
+        if not hmac.compare_digest(signature, score_hmac(payload, test_auth_key)):
+            raise SkillForgeError("locked-test evaluator authentication failed")
     skill_sha256 = require_sha256(payload.get("skill_sha256"), "skill_sha256")
     if skill_sha256 != expected_skill_sha256:
         raise SkillForgeError("score file does not match the expected skill")
@@ -565,6 +589,7 @@ def command_decide(args: argparse.Namespace) -> int:
     test_current_payload: Any = None
     test_candidate_payload: Any = None
     accepted_decision_payload: Any = None
+    test_auth_key: bytes | None = None
     if candidate.mandatory_failures:
         reason = "candidate has mandatory validation failures"
     elif mode == "exploratory":
@@ -589,6 +614,9 @@ def command_decide(args: argparse.Namespace) -> int:
             raise SkillForgeError("both locked-test scores are required")
         if not getattr(args, "accepted_decision", None):
             raise SkillForgeError("locked-test scores require the prior accepted decision")
+        if not getattr(args, "test_auth_key", None):
+            raise SkillForgeError("locked-test scores require an evaluator authentication key")
+        test_auth_key = load_auth_key(args.test_auth_key)
         accepted_decision_payload = load_json(args.accepted_decision)
         validate_accepted_decision(accepted_decision_payload, manifest, mode, {
             "current_skill_sha256": file_hash(current_skill),
@@ -607,8 +635,9 @@ def command_decide(args: argparse.Namespace) -> int:
             manifest,
             "test",
             manifest["skill_sha256"],
+            test_auth_key,
         )
-        test_candidate = parse_score(test_candidate_payload, manifest, "test", candidate_sha256)
+        test_candidate = parse_score(test_candidate_payload, manifest, "test", candidate_sha256, test_auth_key)
         validate_comparable(test_current, test_candidate)
         if test_current.mandatory_failures:
             raise SkillForgeError("baseline locked-test evidence has mandatory failures")
@@ -625,6 +654,8 @@ def command_decide(args: argparse.Namespace) -> int:
             status, reason = "Rejected", "compression candidate regressed on locked test"
     elif getattr(args, "accepted_decision", None):
         raise SkillForgeError("accepted decision is only valid with both locked-test scores")
+    elif getattr(args, "test_auth_key", None):
+        raise SkillForgeError("evaluator authentication key is only valid with locked-test scores")
     decision = {
         "schema_version": DECISION_SCHEMA,
         "run_id": manifest["run_id"],
@@ -644,6 +675,7 @@ def command_decide(args: argparse.Namespace) -> int:
         "current_test_sha256": payload_hash(test_current_payload) if test_current_payload is not None else None,
         "candidate_test_sha256": payload_hash(test_candidate_payload) if test_candidate_payload is not None else None,
         "accepted_decision_sha256": payload_hash(accepted_decision_payload) if accepted_decision_payload is not None else None,
+        "test_auth_key_sha256": hashlib.sha256(test_auth_key).hexdigest() if test_auth_key is not None else None,
         "validation_adequacy_sha256": payload_hash(adequacy_payload),
         "candidate_receipt_sha256": payload_hash(receipt_payload),
     }
@@ -694,6 +726,7 @@ def build_parser() -> argparse.ArgumentParser:
     decide.add_argument("--test-current")
     decide.add_argument("--test-candidate")
     decide.add_argument("--accepted-decision")
+    decide.add_argument("--test-auth-key")
     decide.add_argument("--out", required=True)
     decide.set_defaults(func=command_decide)
     return parser

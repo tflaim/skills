@@ -7,7 +7,7 @@ Contributions should remain portable, focused, and independently verifiable.
 1. Create or edit a lower-case, hyphenated directory under skills.
 2. Include SKILL.md with a matching name and a description that explains when the skill should trigger.
 3. Keep SKILL.md under 500 lines. Put supplementary guidance in references and executable utilities in scripts.
-4. Put Codex UI metadata in agents/openai.yaml using the interface mapping.
+4. If the skill needs Codex-specific UI metadata, put it in agents/openai.yaml using the interface mapping.
 5. Reference every bundled file from SKILL.md or explain why it is development-only.
 6. Update README.md and skills.sh.json when catalog membership changes.
 

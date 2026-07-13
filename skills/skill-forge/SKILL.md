@@ -77,13 +77,13 @@ Do not use exploratory mode for an efficacy claim.
          --candidate-train-score candidate-train-score.json \
          --out run/decisions/accepted.json
 
-   Run this first without locked-test scores. Only after it returns `Accepted` or `Compressed`, send the immutable decision and exact candidate to the external evaluator. The evaluator verifies the decision's candidate hash before revealing committed test bodies, then returns score rows containing the matching case commitments. Rerun `decide` with `--accepted-decision run/decisions/accepted.json`, `--test-current`, `--test-candidate`, and a new output path such as `run/decisions/final.json`. The helper verifies the accepted-stage decision and binds every consumed train, validation, and locked-test score payload into the final decision. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
+   Run this first without locked-test scores. Only after it returns `Accepted` or `Compressed`, send the immutable decision and exact candidate to the external evaluator. The evaluator verifies the decision's candidate hash before revealing committed test bodies, signs each locked-test score payload with an HMAC-SHA-256 key that never enters the optimizer context, and runs the final `decide` command outside the optimizer context with `--accepted-decision run/decisions/accepted.json`, `--test-current`, `--test-candidate`, `--test-auth-key path/to/evaluator.key`, and a new output path such as `run/decisions/final.json`. The helper verifies the evaluator authentication and accepted-stage decision, then binds every consumed train, validation, and locked-test score payload into the final decision. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
 
 10. Report mode, split counts, validation coverage, exact diff, status, validation delta, locked-test delta when used, prompt-size delta, and remaining failures.
 
 ## Evidence rules
 
-- Bind every score file to the run ID, manifest hash, exact skill hash, and evaluator hash. Compare the same cases, evaluator, and maximum scores. The helper rejects stale candidates, changed evaluators, and unequal denominators.
+- Bind every score file to the run ID, manifest hash, exact skill hash, and evaluator hash. Authenticate locked-test score payloads with the external evaluator's secret HMAC key, which must remain outside the optimizer context. Compare the same cases, evaluator, and maximum scores. The helper rejects stale candidates, changed evaluators, forged locked scores, and unequal denominators.
 - Treat infrastructure failures as invalid evidence, not candidate failures.
 - A baseline mandatory failure blocks comparison. Repair the baseline and start a new run.
 - A candidate train mandatory failure or regression on an original train failure blocks acceptance.
