@@ -50,7 +50,7 @@ Take any existing skill, define what "good output" looks like as binary yes/no c
    - See [references/eval-guide.md](references/eval-guide.md) "adversarial & minimal evals" section for input patterns and eval templates.
 3. **Eval criteria:** What 3-6 binary yes/no checks define a good output? See [references/eval-guide.md](references/eval-guide.md).
    - **At least one eval MUST be mechanically verifiable** (grep, wc, parse, execute). Not LLM-judged. If the user provides only LLM-judged evals, push back: "I need at least one eval I can check with code, not judgment. Can we add a word count check, a grep for banned phrases, or something I can run as a command?" See the eval guide for examples.
-4. **Decision contract:** Before baseline execution, freeze `decision-contract.json` with the optimization and validation gates, mandatory checks, material-regression threshold, measured noise-band calculation, allowed resample count, and rule for resolving repeated disagreement. Record its SHA-256 in the changelog. Changing the contract requires a new run.
+4. **Decision contract:** Before baseline execution, freeze `decision-contract.json` with the exact public input definitions under `inputs`, the complete rubric definitions under `criteria` (question, pass/fail conditions, applicability, and mechanical verification where applicable), the optimization and validation gates, mandatory checks, material-regression threshold, measured noise-band calculation, integer `allowed_resample_count`, and rule for resolving repeated disagreement. Canonicalize each input and criterion value as sorted-key compact ASCII JSON and record its SHA-256 in `pair-manifest.tsv`. Record the contract's SHA-256 in the changelog. Changing an input, rubric, or other contract term requires a new uniquely identified run.
 5. **Samples per input:** How many times should the skill run for each input in each experiment? **Default: 3 samples per input from baseline onward.** Do not substitute a fixed total run count. Repeated sampling is required to distinguish a mutation from ordinary model variation.
 6. **Budget cap:** What is the maximum number of experiment cycles? Default: 12. The user can run another round later.
 7. **Run root:** Where should evaluation artifacts be stored? Keep them outside the target skill unless the user explicitly requests otherwise.
@@ -202,8 +202,8 @@ Run the skill AS-IS before changing anything. This is experiment #0.
 2. Create `results.tsv` with the header row.
 3. Back up the original SKILL.md as `SKILL.md.baseline`
 4. Save the approved `decision-contract.json`, its SHA-256, and the body-free `locked-test-manifest.jsonl` from the external evaluator.
-5. Create `pair-manifest.tsv` from the frozen applicability matrix. Include one row for every optimization or validation input, sample index, and applicable criterion that each mutation must compare. Before running the baseline, commit it with `python3 <skill-directory>/scripts/validate_pair_ledger.py --manifest pair-manifest.tsv --manifest-commitment pair-manifest.sha256 --commit-manifest`. Changing the manifest after this commitment requires a fresh run directory.
-6. Create cumulative `pair-ledger.tsv` and `resample-ledger.tsv` with only their headers. Candidate comparison rows go in the pair ledger; repeated noise-adjudication rows go in the resample ledger. Every experiment requires the frozen `pair-manifest.sha256` commitment.
+5. Create `pair-manifest.tsv` from the frozen applicability matrix. Include one row for every optimization or validation input, sample index, and applicable criterion that each mutation must compare, including the canonical input and criterion hashes from the decision contract. Before running the baseline, commit it with `python3 <skill-directory>/scripts/validate_pair_ledger.py --manifest pair-manifest.tsv --manifest-commitment pair-manifest.sha256 --decision-contract decision-contract.json --commit-manifest`. Changing the manifest after this commitment requires a fresh run directory.
+6. Create cumulative `pair-ledger.tsv` and `resample-ledger.tsv` with only their headers. Candidate comparison rows go in the pair ledger; repeated noise-adjudication rows go in the resample ledger. Every experiment requires the frozen `pair-manifest.sha256` commitment and verifies the input and rubric commitments against `decision-contract.json`.
 7. Run the skill `samples_per_input` times for every optimization and validation input.
 8. Score every output against every applicable eval. For MECHANICAL evals, run the verification command. For LLM-JUDGED evals, use deterministic or low-variance settings when the runtime supports them, and apply the rubric consistently.
 9. Record optimization and validation baseline scores separately.
@@ -220,13 +220,13 @@ Use these exact pair files:
 
 ```text
 pair-manifest.tsv:
-split	input_id	sample	criterion
+split	input_id	input_sha256	sample	criterion	criterion_sha256
 
 pair-ledger.tsv:
-experiment	split	input_id	sample	criterion	verdict	evidence
+experiment	split	input_id	input_sha256	sample	criterion	criterion_sha256	verdict	evidence
 
 resample-ledger.tsv:
-experiment	resample_batch	split	input_id	sample	criterion	verdict	evidence
+experiment	resample_batch	split	input_id	input_sha256	sample	criterion	criterion_sha256	verdict	evidence
 ```
 
 Use `optimization` or `validation` for `split`, positive integers for `sample`, and `SAME`, `BETTER`, or `WORSE` for `verdict`. Keep evidence short and specific to that pair and criterion. The manifest is frozen with the rubric; changing either requires a fresh run directory and full baseline.
@@ -275,12 +275,13 @@ This is the core autoresearch loop. Runs autonomously within the budget cap.
    python3 <skill-directory>/scripts/validate_pair_ledger.py \
      --manifest pair-manifest.tsv \
      --manifest-commitment pair-manifest.sha256 \
+     --decision-contract decision-contract.json \
      --ledger pair-ledger.tsv \
      --resample-ledger resample-ledger.tsv \
      --experiment [N]
    ```
 
-   The helper returns `PASS`, initial and resample row counts, resample batches, verdict counts, and manifest and ledger hashes. Do not decide from prose summaries or a failed validation. Correct ledger rows from the existing scored evidence and rerun the helper; do not rerun target samples merely to repair the research record.
+   The helper returns `EVIDENCE_VALID`, initial and resample row counts, resample batches, verdict counts, the frozen resample cap, and contract, manifest, and ledger hashes. This status proves structural integrity and frozen input/rubric identity. It does not mean the candidate satisfied the decision gates. Apply the frozen gates in the next step. Do not decide from prose summaries or structurally invalid evidence. Correct ledger rows from the existing scored evidence and rerun the helper; do not rerun target samples merely to repair the research record.
 
 8. **Decide: keep, discard, or mark inconclusive.** Read the validated rows for the current experiment and compare anchored candidate pairs against the accepted skill version.
    - For quality mutations: **KEEP** only if at least one optimization pair is better, no optimization or validation pair is materially worse, mechanical checks pass, and both sets meet their predeclared gates.
@@ -321,7 +322,7 @@ After each mutation experiment (kept, discarded, or inconclusive), append to `ch
 **Reasoning:** [Why this change was expected to help]
 **Result:** [What actually happened, including which evals improved or declined]
 **Decision evidence:** [Matched-pair verdicts, mechanical results, scorer-control outcome, and any noise handling]
-**Pair evidence:** [`pair-ledger.tsv` and `resample-ledger.tsv`, experiment, validated row counts, resample batches, decision-contract hash, manifest hash, ledger hashes, and PASS]
+**Pair evidence:** [`pair-ledger.tsv` and `resample-ledger.tsv`, experiment, validated row counts, resample batches, decision-contract hash, manifest hash, ledger hashes, and EVIDENCE_VALID]
 **Failing outputs:** [Brief description of what still fails, if anything]
 ```
 
@@ -367,22 +368,22 @@ This is a long autonomous process, so drift is a risk. Before adoption, verify:
 2. At least one MECHANICAL eval was used (not all LLM-judged)
 3. Validation score was checked for every mutation and did not regress for the selected final skill
 4. Prompt growth (or shrinkage) is documented in the final report
-5. Changelog has one section per mutation experiment, records every encountered `KEEP`, `DISCARD`, or `INCONCLUSIVE`, and records the pair-ledger validator PASS and hashes
+5. Changelog has one section per mutation experiment, records every encountered `KEEP`, `DISCARD`, or `INCONCLUSIVE`, and records the pair-ledger validator `EVIDENCE_VALID` status and hashes
 6. If baseline was 90%+, the fast path was used, or the report explains why a full loop was still necessary
 7. Borderline comparisons were preserved in the resample ledger and handled with the frozen noise protocol, not an improvised tolerance
 8. Locked tests were technically isolated until selection and verified against the frozen manifest, or the report avoids an unbiased generalization claim
 9. Locked-test passage was gated on every mandatory and narrow measured axis, not only the aggregate score
-10. Pair-ledger validation passes for the final experiment, which rechecks every cumulative experiment.
+10. Pair-ledger validation returns `EVIDENCE_VALID` for the final experiment, which rechecks every cumulative experiment. The final decision separately satisfies the frozen gates.
 
 ---
 
 ## output format
 
 Produces these artifacts in the unique run directory:
-- `decision-contract.json` and its recorded SHA-256: frozen gates, mandatory checks, regression threshold, noise calculation, resample cap, and adjudication rule.
+- `decision-contract.json` and its recorded SHA-256: exact public inputs, complete rubric definitions, frozen gates, mandatory checks, regression threshold, noise calculation, integer `allowed_resample_count`, and adjudication rule.
 - `locked-test-manifest.jsonl`: opaque IDs and commitments only; locked bodies remain external.
 - `results.tsv`: schema `experiment\toptimization_score\toptimization_max\tvalidation_score\tvalidation_max\tstatus\tdescription\tprompt_length\tlocked_test_result`. After external evaluation, populate the baseline row with its locked score and per-axis totals. Populate the selected final row with `PASS` or `FAIL`, baseline and final totals, and any failed axis names. Do not reduce the decision to one raw score.
-- `pair-manifest.tsv`: frozen expected comparison keys for one mutation experiment.
+- `pair-manifest.tsv`: frozen expected comparison keys and canonical input/rubric commitments for one mutation experiment.
 - `pair-manifest.sha256`: frozen commitment created before baseline execution and verified before every mutation decision.
 - `pair-ledger.tsv`: cumulative explicit verdict and evidence rows by experiment, split, input, sample, and applicable criterion.
 - `resample-ledger.tsv`: append-only repeated evidence keyed by experiment and resample batch.

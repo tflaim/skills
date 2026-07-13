@@ -11,7 +11,9 @@ from collections import Counter
 from pathlib import Path
 
 
-MANIFEST_HEADER = ["split", "input_id", "sample", "criterion"]
+MANIFEST_HEADER = [
+    "split", "input_id", "input_sha256", "sample", "criterion", "criterion_sha256",
+]
 LEDGER_HEADER = ["experiment", *MANIFEST_HEADER, "verdict", "evidence"]
 RESAMPLE_HEADER = ["experiment", "resample_batch", *MANIFEST_HEADER, "verdict", "evidence"]
 VERDICTS = {"SAME", "BETTER", "WORSE"}
@@ -23,6 +25,30 @@ def fail(message: str) -> None:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def payload_sha256(value: object) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def load_decision_contract(path: Path) -> dict[str, object]:
+    if not path.is_file():
+        fail(f"missing decision contract: {path}")
+    try:
+        contract = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        fail(f"invalid decision contract JSON in {path}: {exc}")
+    if not isinstance(contract, dict):
+        fail(f"decision contract must be an object: {path}")
+    if not isinstance(contract.get("inputs"), dict) or not contract["inputs"]:
+        fail(f"decision contract inputs must be a nonempty object: {path}")
+    if not isinstance(contract.get("criteria"), dict) or not contract["criteria"]:
+        fail(f"decision contract criteria must be a nonempty object: {path}")
+    cap = contract.get("allowed_resample_count")
+    if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
+        fail(f"decision contract allowed_resample_count must be a nonnegative integer: {path}")
+    return contract
 
 
 def read_tsv(path: Path, header: list[str], *, allow_empty: bool = False) -> list[dict[str, str]]:
@@ -50,7 +76,7 @@ def positive_int(value: str, field: str, path: Path) -> int:
     return parsed
 
 
-def pair_key(row: dict[str, str], path: Path) -> tuple[str, str, int, str]:
+def pair_key(row: dict[str, str], path: Path) -> tuple[str, str, str, int, str, str]:
     for field in MANIFEST_HEADER:
         value = row[field]
         if not value.strip():
@@ -59,7 +85,30 @@ def pair_key(row: dict[str, str], path: Path) -> tuple[str, str, int, str]:
             fail(f"noncanonical whitespace in {field} in {path}: {value!r}")
     if row["split"] not in {"optimization", "validation"}:
         fail(f"invalid split in {path}: {row['split']}")
-    return (row["split"], row["input_id"], positive_int(row["sample"], "sample", path), row["criterion"])
+    for field in ("input_sha256", "criterion_sha256"):
+        if len(row[field]) != 64 or any(character not in "0123456789abcdef" for character in row[field]):
+            fail(f"invalid SHA-256 in {field} in {path}: {row[field]}")
+    return (
+        row["split"], row["input_id"], row["input_sha256"],
+        positive_int(row["sample"], "sample", path), row["criterion"], row["criterion_sha256"],
+    )
+
+
+def verify_manifest_contract(rows: list[dict[str, str]], contract: dict[str, object]) -> None:
+    inputs = contract["inputs"]
+    criteria = contract["criteria"]
+    assert isinstance(inputs, dict) and isinstance(criteria, dict)
+    for row in rows:
+        input_id = row["input_id"]
+        criterion = row["criterion"]
+        if input_id not in inputs:
+            fail(f"manifest input is absent from decision contract: {input_id}")
+        if criterion not in criteria:
+            fail(f"manifest criterion is absent from decision contract: {criterion}")
+        if row["input_sha256"] != payload_sha256(inputs[input_id]):
+            fail(f"manifest input commitment differs from decision contract: {input_id}")
+        if row["criterion_sha256"] != payload_sha256(criteria[criterion]):
+            fail(f"manifest criterion commitment differs from decision contract: {criterion}")
 
 
 def check_manifest_commitment(path: Path, manifest_sha256: str) -> None:
@@ -86,15 +135,18 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--manifest-commitment", required=True, type=Path)
+    parser.add_argument("--decision-contract", required=True, type=Path)
     parser.add_argument("--commit-manifest", action="store_true")
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--resample-ledger", type=Path)
     parser.add_argument("--experiment", type=int)
     args = parser.parse_args()
 
+    contract = load_decision_contract(args.decision_contract)
     manifest_rows = read_tsv(args.manifest, MANIFEST_HEADER)
     manifest_sha256 = sha256(args.manifest)
     manifest_keys = [pair_key(row, args.manifest) for row in manifest_rows]
+    verify_manifest_contract(manifest_rows, contract)
     if len(set(manifest_keys)) != len(manifest_keys):
         fail("duplicate pair key in manifest")
     expected = set(manifest_keys)
@@ -115,15 +167,15 @@ def main() -> None:
     check_manifest_commitment(args.manifest_commitment, manifest_sha256)
 
     by_experiment: dict[int, list[dict[str, str]]] = {}
-    seen: set[tuple[int, str, str, int, str]] = set()
+    seen: set[tuple[int, str, str, str, int, str, str]] = set()
     for row in read_tsv(args.ledger, LEDGER_HEADER):
         experiment = positive_int(row["experiment"], "experiment", args.ledger)
-        split, input_id, sample, criterion = pair_key(row, args.ledger)
+        pair = pair_key(row, args.ledger)
         if row["verdict"] not in VERDICTS:
             fail(f"invalid verdict in {args.ledger}: {row['verdict']}")
         if not row["evidence"].strip():
             fail(f"blank evidence in {args.ledger}")
-        key = (experiment, split, input_id, sample, criterion)
+        key = (experiment, *pair)
         if key in seen:
             fail(f"duplicate ledger key: {key}")
         seen.add(key)
@@ -147,7 +199,7 @@ def main() -> None:
             }, sort_keys=True))
 
     resample_rows = read_tsv(args.resample_ledger, RESAMPLE_HEADER, allow_empty=True)
-    seen_resamples: set[tuple[int, int, str, str, int, str]] = set()
+    seen_resamples: set[tuple[int, int, str, str, str, int, str, str]] = set()
     resample_batches: set[tuple[int, int]] = set()
     for row in resample_rows:
         experiment = positive_int(row["experiment"], "experiment", args.resample_ledger)
@@ -167,9 +219,22 @@ def main() -> None:
         seen_resamples.add(key)
         resample_batches.add((experiment, batch))
 
+    resample_cap = int(contract["allowed_resample_count"])
+    for experiment in sorted({experiment for experiment, _ in resample_batches}):
+        batches = sorted(batch for candidate, batch in resample_batches if candidate == experiment)
+        expected_batches = list(range(1, len(batches) + 1))
+        if batches != expected_batches:
+            fail(f"resample batches for experiment {experiment} must be contiguous from 1: {batches}")
+        if len(batches) > resample_cap:
+            fail(
+                f"resample batches for experiment {experiment} exceed decision-contract cap "
+                f"{resample_cap}: {batches}"
+            )
+
     selected = by_experiment[args.experiment]
     verdicts = Counter(row["verdict"] for row in selected)
     print(json.dumps({
+        "decision_contract_sha256": sha256(args.decision_contract),
         "experiment": args.experiment,
         "ledger_sha256": sha256(args.ledger),
         "manifest_sha256": manifest_sha256,
@@ -177,7 +242,8 @@ def main() -> None:
         "resample_ledger_sha256": sha256(args.resample_ledger),
         "resample_rows": len(resample_rows),
         "rows": len(selected),
-        "status": "PASS",
+        "resample_cap": resample_cap,
+        "status": "EVIDENCE_VALID",
         "validated_experiments": sorted(by_experiment),
         "verdicts": {verdict: verdicts[verdict] for verdict in sorted(VERDICTS)},
     }, sort_keys=True))

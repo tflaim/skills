@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -8,9 +10,14 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "validate_pair_ledger.py"
-MANIFEST_HEADER = "split\tinput_id\tsample\tcriterion\n"
-LEDGER_HEADER = "experiment\tsplit\tinput_id\tsample\tcriterion\tverdict\tevidence\n"
-RESAMPLE_HEADER = "experiment\tresample_batch\tsplit\tinput_id\tsample\tcriterion\tverdict\tevidence\n"
+MANIFEST_HEADER = "split\tinput_id\tinput_sha256\tsample\tcriterion\tcriterion_sha256\n"
+LEDGER_HEADER = "experiment\tsplit\tinput_id\tinput_sha256\tsample\tcriterion\tcriterion_sha256\tverdict\tevidence\n"
+RESAMPLE_HEADER = "experiment\tresample_batch\tsplit\tinput_id\tinput_sha256\tsample\tcriterion\tcriterion_sha256\tverdict\tevidence\n"
+
+
+def payload_sha256(value: object) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class PairLedgerTests(unittest.TestCase):
@@ -19,9 +26,16 @@ class PairLedgerTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.manifest = self.root / "pair-manifest.tsv"
         self.commitment = self.root / "pair-manifest.sha256"
+        self.contract = self.root / "decision-contract.json"
         self.ledger = self.root / "pair-ledger.tsv"
         self.resample_ledger = self.root / "resample-ledger.tsv"
         self.resample_ledger.write_text(RESAMPLE_HEADER, encoding="utf-8")
+        self.input_body = {"prompt": "case prompt"}
+        self.criterion_body = {
+            "question": "Did it work?", "pass": "yes", "fail": "no",
+            "applicability": "all cases", "verification": "inspect output",
+        }
+        self.write_contract()
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -34,6 +48,8 @@ class PairLedgerTests(unittest.TestCase):
             str(self.manifest),
             "--manifest-commitment",
             str(self.commitment),
+            "--decision-contract",
+            str(self.contract),
         ]
         if commit:
             command.append("--commit-manifest")
@@ -53,13 +69,26 @@ class PairLedgerTests(unittest.TestCase):
             check=False,
         )
 
+    def write_contract(self, *, resample_cap: int = 1) -> None:
+        self.contract.write_text(json.dumps({
+            "allowed_resample_count": resample_cap,
+            "inputs": {"case-1": self.input_body, "case-2": self.input_body},
+            "criteria": {"quality": self.criterion_body},
+        }), encoding="utf-8")
+
+    def pair_fields(self, input_id: str = "case-1") -> str:
+        return (
+            f"optimization\t{input_id}\t{payload_sha256(self.input_body)}\t1\tquality\t"
+            f"{payload_sha256(self.criterion_body)}"
+        )
+
     def write_single_pair(self, input_id: str = "case-1", experiment: int = 1) -> None:
         self.manifest.write_text(
-            MANIFEST_HEADER + f"optimization\t{input_id}\t1\tquality\n",
+            MANIFEST_HEADER + self.pair_fields(input_id) + "\n",
             encoding="utf-8",
         )
         rows = [
-            f"{number}\toptimization\t{input_id}\t1\tquality\tSAME\tmatched\n"
+            f"{number}\t{self.pair_fields(input_id)}\tSAME\tmatched\n"
             for number in range(1, experiment + 1)
         ]
         self.ledger.write_text(LEDGER_HEADER + "".join(rows), encoding="utf-8")
@@ -106,7 +135,7 @@ class PairLedgerTests(unittest.TestCase):
         self.write_single_pair()
         self.assertEqual(self.run_validator(commit=True).returncode, 0)
         self.resample_ledger.write_text(
-            RESAMPLE_HEADER + "1\t1\toptimization\tcase-1\t1\tquality\tBETTER\trepeated evidence\n",
+            RESAMPLE_HEADER + f"1\t1\t{self.pair_fields()}\tBETTER\trepeated evidence\n",
             encoding="utf-8",
         )
 
@@ -114,12 +143,52 @@ class PairLedgerTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('"resample_batches": ["1:1"]', result.stdout)
+        self.assertIn('"status": "EVIDENCE_VALID"', result.stdout)
+
+    def test_rejects_resample_batch_over_contract_cap(self) -> None:
+        self.write_single_pair()
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.resample_ledger.write_text(
+            RESAMPLE_HEADER + f"1\t1\t{self.pair_fields()}\tSAME\tfirst\n"
+            + f"1\t2\t{self.pair_fields()}\tBETTER\tsecond\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_validator(1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("exceed decision-contract cap", result.stderr)
+
+    def test_rejects_noncontiguous_resample_batches(self) -> None:
+        self.write_contract(resample_cap=2)
+        self.write_single_pair()
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.resample_ledger.write_text(
+            RESAMPLE_HEADER + f"1\t2\t{self.pair_fields()}\tBETTER\tskipped batch\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_validator(1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must be contiguous from 1", result.stderr)
+
+    def test_rejects_changed_rubric_content(self) -> None:
+        self.write_single_pair()
+        self.assertEqual(self.run_validator(commit=True).returncode, 0)
+        self.criterion_body["pass"] = "changed after baseline"
+        self.write_contract()
+
+        result = self.run_validator(1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("criterion commitment differs", result.stderr)
 
     def test_rejects_missing_trailing_column_without_traceback(self) -> None:
         self.write_single_pair()
         self.assertEqual(self.run_validator(commit=True).returncode, 0)
         self.ledger.write_text(
-            LEDGER_HEADER + "1\toptimization\tcase-1\t1\tquality\tSAME\n",
+            LEDGER_HEADER + f"1\t{self.pair_fields()}\tSAME\n",
             encoding="utf-8",
         )
 
