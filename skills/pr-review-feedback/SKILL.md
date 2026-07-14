@@ -35,6 +35,8 @@ If the input has no adjudicable claims (e.g. only "CC reviewed this") or no chec
    - identify whether you are on the PR branch, a detached worktree, or the wrong branch
 3. Turn feedback into claims:
    - rewrite each material point as a concrete source claim
+   - use one claim-table row per atomic assertion and per requested action, including actions joined by conjunctions; give claimed downstream effects separate rows grounded in supplied runtime evidence
+   - classify reviewer-only provenance, impact, or severity as `not valid` unless current source establishes it
    - include file/path/line references when the reviewer provides them
    - separate blockers from suggestions and style notes
 4. Verify each claim:
@@ -55,9 +57,15 @@ If the input has no adjudicable claims (e.g. only "CC reviewed this") or no chec
    - run targeted checks first
    - run broader checks when the touched surface is shared, user-facing, security-sensitive, or required by repo instructions
    - rerun after fixes
-8. Respond on the PR only when the user has authorized PR writes and the runtime has write access:
-   - summarize accepted fixes and commit hash
-   - list validation commands
+8. Build response state before drafting or posting:
+   - report an `Action state` block with separate `Authorization`, `Runtime capability`, `Completed actions`, and `Pending or not authorized` lines; never infer completion or use placeholders
+   - choose one response mode from those facts: `posted` only after an actual PR write; `ready to post` when posting is authorized and capable and prerequisites are complete; `after completion` when posting is authorized and capable but prerequisites remain; `current state` when posting is forbidden or unavailable
+   - in `current state`, the exact response must mirror completed and pending actions and say it was not posted
+   - in `after completion`, keep pending facts outside the draft; the exact response describes prerequisites as completed without placeholders
+9. Respond on the PR only when the user has authorized PR writes and the runtime has write access:
+   - label the response mode and keep the exact response consistent with the action state
+   - summarize accepted fixes and commit hash when available
+   - list validation commands or results
    - mention declined/deferred findings briefly with rationale
    - avoid defensive tone, but do not pretend unaccepted feedback was fixed
    - otherwise, provide the exact response as a draft and make no external write
