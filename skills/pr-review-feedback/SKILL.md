@@ -1,6 +1,6 @@
 ---
 name: pr-review-feedback
-description: Adjudicate human, CI, or automated PR review claims against current source truth before changing code or responding. Fix accepted findings and post only when authorized.
+description: Adjudicate human, CI, or automated PR review claims against current source truth before changing code or responding.
 ---
 
 # PR Review Feedback

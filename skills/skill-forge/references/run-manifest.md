@@ -59,28 +59,14 @@ Locked-test score rows also require `commitment_sha256`. The helper compares eve
 
 The complete locked-test score object also requires `evaluator_hmac_sha256`, computed as HMAC-SHA-256 over canonical JSON after removing that signature field. The external evaluator owns a secret key of at least 32 bytes, keeps it outside the optimizer context, and supplies its path only when it runs the final decision. A self-declared evaluator hash or copied case commitment is not authentication.
 
-Run the final locked-test decision outside the optimizer context:
+Run the final locked-test decision outside the optimizer context. Repeat the accepted-stage `decide` command from step 9 with the selected mode, add these arguments, and change the output from `run/decisions/accepted.json` to `run/decisions/final.json`:
 
 ```bash
-python3 scripts/skill_forge.py decide \
-  --mode quality \
-  --run-dir run \
-  --current current-validation.json \
-  --candidate candidate-validation.json \
-  --current-skill path/to/SKILL.md \
-  --candidate-skill run/candidates/candidate.SKILL.md \
-  --candidate-receipt run/candidates/candidate.SKILL.md.receipt.json \
-  --validation-adequacy run/validation-adequacy.json \
-  --train-score train-score.json \
-  --candidate-train-score candidate-train-score.json \
-  --accepted-decision run/decisions/accepted.json \
-  --test-current locked-current.json \
-  --test-candidate locked-candidate.json \
-  --test-auth-key path/to/evaluator.key \
-  --out run/decisions/final.json
+--accepted-decision run/decisions/accepted.json \
+--test-current locked-current.json \
+--test-candidate locked-candidate.json \
+--test-auth-key path/to/evaluator.key
 ```
-
-Use the run's selected mode in place of `quality`.
 
 Aggregate fields must equal the per-case sums. Baseline and candidate evidence must match the run and manifest, bind to their exact skill files, use the same evaluator hash, use the frozen case order, and use identical per-case maximum scores. Stale candidate evidence, a changed evaluator, or a higher raw score with a larger denominator is rejected.
 

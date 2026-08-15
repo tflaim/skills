@@ -1,6 +1,6 @@
 ---
 name: pr-preflight
-description: Preflight repository changes before a commit or push, or before opening a pull request. Verify branch intent, the updated remote-base diff, relevant checks, and material review findings before the requested action.
+description: Preflight repository changes before a commit or push, or before opening a pull request.
 ---
 
 # PR Preflight

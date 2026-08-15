@@ -2,8 +2,8 @@
 name: skill-grinder
 description: >-
   Grind an existing skill through an autonomous mutation loop when repeated failures need broader
-  search. Evaluate pure generators directly, interactive workflows through stable artifacts, and
-  reject workflows with no testable output.
+  search. Route pure generators to direct evaluation, artifact-producing workflows to stable-artifact
+  evaluation, and purely interactive workflows to expert review.
 ---
 # Autoresearch for Skills
 
@@ -18,7 +18,7 @@ Take any existing skill, define what "good output" looks like as binary yes/no c
 1. Generates outputs from the skill using test inputs
 2. Scores every output against the eval criteria
 3. Mutates the skill prompt to fix failures
-4. Keeps supported quality gains and quality-preserving compression, discards regressions, and re-samples inconclusive results
+4. Keeps supported quality gains and quality-preserving compression, rejects regressions, and re-samples inconclusive results
 5. Repeats until gains plateau or the budget is hit
 
 **Output:** An improved SKILL.md + `results.tsv` + `pair-manifest.tsv` + `pair-ledger.tsv` + `changelog.md`.

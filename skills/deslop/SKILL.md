@@ -2,8 +2,7 @@
 name: deslop
 license: LICENSE
 description: >
-  Deslop casual, professional, or formal prose when AI-writing patterns obscure
-  the intended voice; preserve meaning while matching the audience's register.
+  Deslop casual, professional, or formal prose when AI-writing patterns obscure the intended voice.
 ---
 
 # Deslop: strip AI patterns, inject human voice
@@ -112,7 +111,7 @@ Steps 1-5 are internal analysis. Begin visible output at step 6.
 1. Read input text. Identify the register (casual/professional/formal) from context.
 2. Scan for all pattern violations (table above + banned phrases). Pay extra attention to pattern 25 (negation-correction framing), which hides in otherwise clean prose.
 3. Check for mixed-origin text: if some sections are already human-written, leave those alone. Only rewrite the AI-sounding parts.
-4. Rewrite: strip violations, preserve meaning and quoted text, match intended tone and register.
+4. Rewrite: strip violations, preserve meaning, quoted text, and legitimate formatting, then match the intended tone and register.
 5. Inject voice: apply at least one physical verb (all registers except formal), vary rhythm, add personality where appropriate for register (casual: asides and opinions; professional: physical verbs only), ensure hedging reads as honest uncertainty.
 6. Self-audit (run internally, list failures):
    - Any banned phrases remaining?
