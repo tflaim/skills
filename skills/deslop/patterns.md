@@ -325,34 +325,23 @@ The single most recognizable AI writing pattern in 2026. AI loves to negate one 
 > In conclusion, the future looks bright. Exciting times lie ahead as we continue this journey toward excellence. Let me know if you'd like me to expand on any section!
 
 **Step 1 -- Draft rewrite:**
-> AI coding assistants speed up some tasks. A 2024 Google study found developers using Codex cranked out simple functions 55% faster than a control group, but showed no improvement on debugging or architectural decisions.
+> AI coding assistants can generate documentation, tests, and refactors. They may speed up parts of software development, but the draft does not support its broader productivity claims.
 >
-> The tools are good at boilerplate: config files, test scaffolding, repetitive refactors. They're bad at knowing when they're wrong. I've mass-accepted suggestions that compiled, passed lint, and still did the wrong thing because I stopped paying attention.
->
-> People I talk to tend to land in 2 camps. Some use it like autocomplete for chores and review every line before committing. Others ripped it out after it kept suggesting patterns from a deprecated internal library.
->
-> The productivity claims are hard to nail down. GitHub says Copilot users "accept 30% of suggestions," but acceptance isn't correctness, and correctness isn't value. The 2024 Uplevel study found no statistically significant difference in pull-request throughput between teams with and without AI assistants.
->
-> These are tools. They don't replace judgment, and they don't eliminate the need for tests. If you don't have tests, you're basically guessing whether the suggestion is right.
+> These tools can also hallucinate and reproduce bias. Human judgment still matters when reviewing generated work.
 
-**Step 2 -- Self-audit ("What still sounds AI-generated? What sounds sterile?"):**
-- Rhythm is still too tidy in places (evenly paced paragraphs, clean contrasts)
-- Named citations can read like plausible-but-fabricated placeholders
-- Closer is functional but flat. Needs a human exit, not a thesis conclusion.
-- "No improvement on debugging" is fine but could use a physical verb
+**Step 2 -- Self-audit:**
+- Every claim is supported by the input; no metrics, citations, or experiences were added
+- The neutral source remains neutral; no persona, metaphor, aside, or punchline was introduced
+- "May speed up" preserves the source's uncertainty without stacking hedges
+- The second paragraph can be tightened without losing the stated risks or the role of human judgment
 
 **Step 3 -- Final rewrite:**
-> AI coding assistants can make you faster at the boring parts. Not everything. Definitely not architecture.
->
-> They're great at boilerplate: config files, test scaffolding, repetitive refactors. They're also great at sounding right while being wrong. I've accepted suggestions that compiled, passed lint, and still missed the point because I stopped paying attention (which, honestly, is the whole problem).
->
-> People I talk to land in 2 camps. Some use it like autocomplete for chores and review every line. Others ripped it out after it kept suggesting patterns they'd already abandoned. Both feel reasonable.
->
-> The productivity metrics are slippery. GitHub says Copilot users "accept 30% of suggestions," but acceptance isn't correctness, and correctness isn't value. If you don't have tests, you're guessing.
+> AI coding assistants can generate documentation, tests, and refactors. They may speed up parts of software development, but they can also hallucinate and reproduce bias. Human judgment still matters when reviewing generated work.
 
 **Changes made:**
 - Stripped: chatbot artifacts, significance inflation, promotional language, negation-correction framing (4 instances of "not X, this is Y"), vague attributions, superficial -ing phrases, copula avoidance, rule-of-three, synonym cycling, false ranges, em dashes, emojis, boldface, formulaic challenges, knowledge-cutoff hedging, excessive hedging, filler phrases, generic conclusion
-- Voice injected: physical verb ("cranked out", "ripped it out"), parenthetical aside ("which, honestly, is the whole problem"), honest hedging ("basically guessing"), varied rhythm (short/long/short), contractions throughout
+- Preserved: source claims about documentation, tests, refactors, possible speed, hallucinations, bias, and human judgment
+- Added no statistics, citations, credentials, anecdotes, experiences, opinions, metaphors, asides, or punchlines
 
 ---
 
@@ -360,4 +349,4 @@ The single most recognizable AI writing pattern in 2026. AI loves to negate one 
 
 Patterns 1-24 based on [humanizer](https://github.com/blader/humanizer) by blader (MIT license), which draws from [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing), maintained by WikiProject AI Cleanup.
 
-Pattern 25, banned phrases, voice injection system, and register calibration are original additions.
+Pattern 25, banned phrases, source-voice preservation guidance, and register calibration are original additions.

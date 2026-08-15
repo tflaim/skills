@@ -35,7 +35,7 @@ DISABLE_TELEMETRY=1 npx skills@latest add tflaim/skills
 | Skill | What it does |
 | --- | --- |
 | [baton](#baton) | Hands live work to a fresh agent session without losing state |
-| [deslop](#deslop) | Strips AI writing patterns and restores an appropriate human voice |
+| [deslop](#deslop) | Strips AI writing patterns while preserving the author's voice |
 | [expert-review](#expert-review) | Brings in the expert most likely to catch consequential mistakes |
 | [explain-system](#explain-system) | Builds a verified mental model of a technical system |
 | [pr-preflight](#pr-preflight) | Checks repository readiness before work leaves the machine |
@@ -62,7 +62,7 @@ Writes a state-transfer document so a fresh agent can continue the work without 
 
 ### deslop
 
-Two jobs: remove AI-generated patterns, then restore a voice that fits the audience. Stripping the robot is not enough if what remains is sterile.
+Remove AI-generated patterns without manufacturing a new voice. Deslop keeps the author's register, personality, and uncertainty when they are present and leaves neutral source material neutral.
 
 Deslop calibrates casual, professional, and formal registers; respects project style rules; preserves facts and quotations; and catches 25 recurring patterns. Its detailed reference includes words to watch and before-and-after examples.
 
