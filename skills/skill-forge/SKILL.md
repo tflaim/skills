@@ -1,6 +1,6 @@
 ---
 name: skill-forge
-description: Use when optimizing an existing agent skill with fast mutation search and validation-gated promotion. Trigger on "skill forge", "optimize this skill", "compare skill edits", "validation-gated skill improvement", or "safe skill compression".
+description: Forge an existing skill through bounded quality, compression, or exploratory mutations; accept changes only when the selected mode's held-out evidence gate passes.
 ---
 
 # Skill Forge
@@ -27,7 +27,7 @@ Never call Found better. Never call Accepted promoted without locked-test eviden
 | compression | The goal is a smaller prompt. | Require validation tie or improvement and a smaller prompt. |
 | exploratory | The goal is learning or candidate discovery. | Report useful train improvements as Found. |
 
-Do not use exploratory mode for an efficacy claim.
+Exploratory mode supports learning and candidate-discovery claims only.
 
 ## Workflow
 
@@ -77,7 +77,7 @@ Do not use exploratory mode for an efficacy claim.
          --candidate-train-score candidate-train-score.json \
          --out run/decisions/accepted.json
 
-   Run this first without locked-test scores. Only after it returns `Accepted` or `Compressed`, send the immutable decision and exact candidate to the external evaluator. The evaluator verifies the decision's candidate hash before revealing committed test bodies, signs each locked-test score payload with an HMAC-SHA-256 key that never enters the optimizer context, and runs the final `decide` command outside the optimizer context with `--accepted-decision run/decisions/accepted.json`, `--test-current`, `--test-candidate`, `--test-auth-key path/to/evaluator.key`, and a new output path such as `run/decisions/final.json`. The helper verifies the evaluator authentication and accepted-stage decision, then binds every consumed train, validation, and locked-test score payload into the final decision. A quality candidate becomes Promoted only when locked test has no mandatory failures and does not regress.
+   Run this first without locked-test scores. After it returns `Accepted` or `Compressed`, read [run-manifest.md](references/run-manifest.md) and have the external evaluator run the final `decide` stage with authenticated locked-test evidence. A quality candidate becomes Promoted only when the locked test has no mandatory failures and does not regress.
 
 10. Report mode, split counts, validation coverage, exact diff, status, validation delta, locked-test delta when used, prompt-size delta, and remaining failures.
 

@@ -2,10 +2,7 @@
 name: deslop
 license: LICENSE
 description: >
-  Use when editing, reviewing, or rewriting text that sounds AI-generated, or when
-  asked to humanize text. Triggers: em dash overuse, negation-correction framing
-  ("This isn't X. This is Y."), sycophantic or promotional tone, and stock AI
-  vocabulary ("delve", "leverage", "landscape").
+  Deslop casual, professional, or formal prose when AI-writing patterns obscure the intended voice.
 ---
 
 # Deslop: strip AI patterns, inject human voice
@@ -44,9 +41,9 @@ Removing AI patterns is only half the job. Sterile, voiceless writing is equally
 - **Qualify once or commit.** One hedge per claim. "This might reduce churn" is fine. "This could potentially possibly help reduce churn" is not.
 
 ### Personality
-- **Parenthetical asides.** Use them for editorial commentary, honest reactions, quick tangents, deflating your own seriousness (like this).
+- **Parenthetical asides (casual only).** Use them for editorial commentary, honest reactions, quick tangents, or deflating your own seriousness (like this).
 - **Humor comes from specificity, not from jokes.** Be unexpectedly precise. Don't try to be funny.
-- **Never pad output to seem thorough.** Shorter and accurate beats longer and fluffy.
+- **Preserve justified length.** Cut padding without turning a substantive long draft into a summary.
 
 ## Banned phrases
 
@@ -77,20 +74,20 @@ These words are fine in technical, conversational, or precise contexts. Ban them
 
 ## Pattern quick reference
 
-The table below is an index. When a pattern match is ambiguous, or you need the full "words to watch" lists and before/after examples, read [patterns.md](patterns.md).
+The table below is the scan index. After matching a pattern, read that pattern's section in [patterns.md](patterns.md) for its words to watch and examples before rewriting it.
 
 | # | Pattern | Fix |
 |---|---------|-----|
-| 1 | Inflated significance ("pivotal", "testament") | State facts, don't editorialize importance |
+| 1 | Inflated significance ("pivotal", "testament", "significant moment") | State facts without editorializing importance |
 | 2 | Undue notability ("featured in NYT, BBC") | Cite at most ONE outlet, with context. Outlet lists and follower counts are promotion, not evidence: cut them even though they look like factual specifics |
 | 3 | Superficial -ing phrases ("highlighting", "showcasing") | Delete or make separate sentence |
-| 4 | Promotional language ("vibrant", "nestled", "groundbreaking") | Neutral, specific descriptions |
+| 4 | Promotional language ("vibrant", "nestled", "groundbreaking", "world-class") | Neutral, specific descriptions |
 | 5 | Vague attributions ("experts argue") | Name the source or drop the claim |
 | 6 | Formulaic challenges ("Despite challenges...") | Specific facts and timeline |
-| 7 | AI vocabulary ("delve", "crucial", "landscape") | Delete or replace with plain language (see banned phrases for hard bans) |
+| 7 | AI vocabulary ("delve", "crucial", "landscape", "underscore") | Delete or replace with plain language (see banned phrases for hard bans) |
 | 8 | Copula avoidance ("serves as", "stands as") | Use "is"/"are"/"has" |
 | 9 | Negative parallelisms ("Not only...but also") | Direct statement |
-| 10 | Rule-of-three overuse | Use two or four items |
+| 10 | Formulaic rule-of-three use | Break the pattern; keep natural three-item lists |
 | 11 | Synonym cycling | Pick one term, reuse it |
 | 12 | False ranges ("from X to Y") | List directly |
 | 13 | Em dash overuse (3+ per paragraph) | Reduce to 0-1 per paragraph. Replace extras with commas, periods, parentheses |
@@ -98,14 +95,14 @@ The table below is an index. When a pattern match is ambiguous, or you need the 
 | 15 | Bolded inline-header lists | Convert to prose |
 | 16 | Title Case headings | Sentence case |
 | 17 | Emoji decoration | Remove from headers/bullets |
-| 18 | Curly quotation marks | Straight quotes in plaintext contexts (markdown, Slack, code) |
+| 18 | Curly quotation marks | Use straight quotes in plaintext; preserve curly quotes in typeset or word-processor documents |
 | 19 | Chatbot artifacts ("I hope this helps!") | Delete entirely |
 | 20 | Knowledge-cutoff disclaimers | State facts or cite sources |
 | 21 | Sycophantic tone ("Great question!") | Delete or replace with substance |
 | 22 | Filler phrases ("In order to") | Simplify |
 | 23 | Excessive hedging ("could potentially") | Qualify once or commit |
 | 24 | Generic positive conclusions | End with specifics |
-| 25 | Negation-correction framing ("Not X. This is Y.") | Delete the negation, just state the positive claim |
+| 25 | Negation-correction framing ("Not X. This is Y.", "less X, more Y", "forget X") | State the positive claim directly |
 
 ## Process
 
@@ -114,7 +111,7 @@ Steps 1-5 are internal analysis. Begin visible output at step 6.
 1. Read input text. Identify the register (casual/professional/formal) from context.
 2. Scan for all pattern violations (table above + banned phrases). Pay extra attention to pattern 25 (negation-correction framing), which hides in otherwise clean prose.
 3. Check for mixed-origin text: if some sections are already human-written, leave those alone. Only rewrite the AI-sounding parts.
-4. Rewrite: strip violations, preserve meaning, match intended tone and register.
+4. Rewrite: strip violations, preserve meaning, quoted text, and legitimate formatting, then match the intended tone and register.
 5. Inject voice: apply at least one physical verb (all registers except formal), vary rhythm, add personality where appropriate for register (casual: asides and opinions; professional: physical verbs only), ensure hedging reads as honest uncertainty.
 6. Self-audit (run internally, list failures):
    - Any banned phrases remaining?
@@ -137,28 +134,8 @@ Steps 1-5 are internal analysis. Begin visible output at step 6.
 3. **Final rewrite**
 4. **Changes summary**
 
-## Common mistakes
-
-- **Overcorrecting into sterile prose.** Removing all AI patterns but leaving no voice is a lateral move. If the result is technically clean but reads like a legal filing, you haven't finished.
-- **Treating every three-item list as a violation.** Real humans use groups of three sometimes. Only flag it when it feels formulaic.
-- **Removing legitimate formatting.** Bold text in technical docs or structured lists in reference material may be intentional.
-- **Altering quoted text.** Never rewrite direct citations or someone else's words.
-- **Eliminating all hedging.** Honest uncertainty ("I think", "probably") is human. AI-style hedging ("could potentially possibly") is the target.
-- **Banning em dashes entirely.** Humans use em dashes. The problem is overuse (3+ per paragraph). Reduce, don't eliminate.
-- **Rewriting already-human text.** In mixed-origin documents (part human, part AI-assisted), identify which sections actually need work. Running an aggressive humanizer pass over naturally-written prose makes it worse.
-- **Dramatically changing length without reason.** A 2,000-word draft should come back as roughly 2,000 words unless the original was genuinely padded. Cutting to 500 words isn't humanizing, it's summarizing.
-- **Applying casual voice to professional text.** Parenthetical asides and editorial commentary don't belong in client proposals or exec summaries. Check the register before injecting personality.
-
-## When NOT to use
-
-- Technical documentation where neutral tone is correct
-- Code comments, changelogs, and API docs
-- Structured data or specifications
-- Quoted text and direct citations
-- Text that is already human-authored and natural
-
 ## Attribution
 
-Pattern detection (patterns 1-24) based on [humanizer](https://github.com/blader/humanizer) by blader, licensed under MIT. Pattern 25, register calibration, voice injection system, banned phrase tiers, and common mistakes guide are original additions.
+Pattern detection (patterns 1-24) based on [humanizer](https://github.com/blader/humanizer) by blader, licensed under MIT. Pattern 25, register calibration, voice injection system, and banned phrase tiers are original additions.
 
 License: [MIT](LICENSE).

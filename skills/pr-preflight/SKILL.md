@@ -1,6 +1,6 @@
 ---
 name: pr-preflight
-description: Run before committing, pushing, or creating/opening a PR. Triggers on "commit and push", "push PR", "create/open PR", "run before push", "prep this PR", "ready to push", or similar requests. Reviews the current branch against the updated remote base, runs deterministic checks, performs a bounded review/fix/verify pass, and blocks unsafe git/GitHub actions.
+description: Preflight repository changes before a commit or push, or before opening a pull request.
 ---
 
 # PR Preflight
@@ -51,7 +51,7 @@ If those conditions are not met, stop before the requested git/GitHub action and
    - behavior/spec: user-visible behavior, edge paths, failure paths, and request/spec fit
    - tests/validation: tests prove the real contract at the right layer and validation matches touched behavior
    - type/generated/dependency: type boundaries, casts, nullability, generated artifacts, schemas, manifests, and lockfiles
-   - structural maintainability: architecture regression, spaghetti growth, wrong-layer logic, thin wrappers, duplicate helpers, file-size growth, and obvious simplification opportunities
+   - structural maintainability: apply every check and severity rule in **Structural Maintainability Pass** below
    - repo-specific policy: local instructions, security boundaries, release rules, and domain-specific review checklists
 7. Use review agents only when available and allowed by the active runtime or explicitly requested by the user. Keep them no-edit and bounded. If review agents are unavailable or not permitted, perform the same passes locally and say they were skipped.
 8. Coordinate findings:

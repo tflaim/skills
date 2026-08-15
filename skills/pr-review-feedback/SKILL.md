@@ -1,6 +1,6 @@
 ---
 name: pr-review-feedback
-description: Adjudicate PR review feedback before making changes. Use when asked to respond to or address reviewer, CI, or automated-review feedback on a pull request. Verify every claim against current source truth, classify the verdict, fix only accepted issues, and draft or post an authorized response.
+description: Adjudicate human, CI, or automated PR review claims against current source truth before changing code or responding.
 ---
 
 # PR Review Feedback
@@ -74,9 +74,6 @@ If the input has no adjudicable claims (e.g. only "CC reviewed this") or no chec
 
 - Do not batch-apply reviewer suggestions.
 - Do not treat confident wording as evidence.
-- Do not turn optional suggestions into scope creep unless the current PR needs them.
-- Do not weaken the original ticket silently to satisfy a reviewer. Name the tradeoff.
-- Do not claim a finding is fixed until code and tests prove the accepted contract.
 - Do not hide behavior changes inside a generic “address review” comment.
 - Do not write to a PR without user authorization and confirmed write access.
 

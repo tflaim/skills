@@ -1,10 +1,8 @@
 ---
 name: baton
 description: >-
-  Pass the baton to a fresh session of any AI coding agent (Claude Code, Codex, Cursor, Aider, Cline, etc.).
-  Writes a state-transfer doc the next agent can act on without recomputing. Use when context is
-  bloating mid-task and you want a clean window without losing your place. Triggers - "/baton", "pass
-  the baton", "hand this off", "start fresh on this", "fresh session for this".
+  Baton-pass active work to a fresh session when context is bloated or a task must move between
+  agents. Adapt the state-transfer document to a named target, or write it tool-agnostically.
 ---
 You are writing a **state-transfer document**, not a conversation summary. The receiver needs to *act*, not reconstruct what happened.
 
@@ -43,14 +41,9 @@ Hit every section. If a section truly doesn't apply, write `n/a` — do not omit
 9. **Tools the receiver will need** — target-aware. For agents with skills/slash commands: list relevant skill names. For agents without: list the underlying commands (`git`, `gh`, test runner, build command, etc.) so the receiver can execute them with generic tools.
 10. **Context the receiver should load** — files the receiver should Read before acting. If the target agent auto-loads project memory, list ONLY load-bearing memory files (adjacent or merely-topical files create noise — skip them). If the target agent has no auto-memory, list every load-bearing file explicitly so the receiver knows to Read each one.
 
-## Don'ts
-
-- Don't recap the conversation chronologically.
-- Don't assume the receiver has the same toolset, environment, or memory as you. If the doc references a command, make sure the receiver can run it; if it references a file, make sure the receiver knows the path.
-
 ## Confirm before writing
 
-Show the full doc to the user before saving. Wait for approval, then Write. Never save on first draft. If the user requests changes, revise and re-show.
+Before showing the draft, verify that the target can run every referenced command and that every load-bearing file is identified by path. Show the full doc to the user, wait for approval, then write it. If the user requests changes, revise and re-show before saving.
 
 ## After writing
 

@@ -1,14 +1,24 @@
 ---
 name: explain-system
 description: >-
-  Use when the user wants to genuinely understand how a technical system works, not just get a quick
-  answer. Triggers on "explain this system", "how does X work", "I need to understand X", "walk me
-  through the architecture", "help me understand this codebase", or when preparing for a technical
-  discussion about an unfamiliar system.
+  Explain a code or non-code technical system by building a verified mental model. Adapt exploration
+  and output for small targets, large multi-subsystem targets, and the user's decision or discussion goal.
 ---
 # Explain System
 
 Build mental models of technical systems you can reason with. Not summaries. Understanding that lets you make product decisions, ask smart questions, and communicate accurately with engineers.
+
+## Done State
+
+The explanation is complete when:
+
+- it addresses the user's stated motivation and negotiated scope
+- the critical control or information flow has been verified against source
+- verified, inferred, and uncertain claims are visibly distinguished
+- every approved outline section is delivered and every domain term is defined at first use
+- verified code claims cite `filename.ext:lineN`, and diagrams match components actually inspected
+- unexplored boundaries and unresolved uncertainty are explicit
+- one comprehension scenario has been offered, with any response corrected or confirmed
 
 ## Phase 1: Context Gathering
 
@@ -78,7 +88,7 @@ Exploration checklist:
 ### Complexity Assessment
 
 After exploration, internally classify:
-- **Trivial** (single file or under ~200 lines): skip the outline proposal. Deliver a brief inline explanation covering purpose, inputs/outputs, and key decisions. Don't force the full Phase 3-6 workflow.
+- **Trivial** (single file or under ~200 lines): skip outline negotiation and section-library formats. Deliver a brief inline explanation covering purpose, inputs/outputs, and key decisions, then offer the comprehension check.
 - **Simple** (single service, clear request path, few integrations): skip Integration Map, brief Failure Modes
 - **Medium** (multiple components, some external deps): standard treatment
 - **Complex** (distributed, many integrations, heavy error handling): expand Integration Map and Failure Modes, add Data Flow
@@ -96,7 +106,20 @@ Before generating any explanation, re-read the 2-3 most critical files and confi
 
 ### Propose an Adaptive Outline
 
-Based on what you found, propose a custom outline. Draw from the Section Library below, but **do not use all sections for every system**. Select what matters for this system and this user's goal.
+Based on what you found, propose a custom outline. Select from this index:
+
+| Section | Select when |
+| --- | --- |
+| Analogy | A familiar comparison would anchor an unfamiliar system |
+| Architecture Overview | Multiple components or boundaries shape the mental model |
+| Integration Map | The system has 2+ external dependencies or failure impact matters |
+| Data Flow | The request path is non-obvious or contains critical decisions |
+| Failure Modes & Edge Cases | Operational risk or complex error handling matters |
+| Key Terminology | Domain language will recur in the user's work or discussion |
+| Configuration & Environment | Flags or environment materially change behavior |
+| Questions to Ask the Team | Source gaps or operational decisions need human answers |
+
+Use only sections that advance this user's goal.
 
 ```markdown
 ## Proposed Outline
@@ -118,6 +141,8 @@ Wait for confirmation or adjustment before proceeding.
 
 Every section should hand the user a piece of a mental model they can reason with, not a summary they have to memorize. Deliver the sections from the approved outline. For outlines with 4+ sections, offer one natural pause at a logical midpoint (e.g., after architecture + data flow, before failure modes + questions). Don't pause after every section since the user already approved the outline.
 
+Before writing the approved sections, read [references/section-library.md](references/section-library.md) for their formats and constraints.
+
 ### Confidence Signaling
 
 Throughout the explanation, distinguish between:
@@ -125,133 +150,31 @@ Throughout the explanation, distinguish between:
 - **Inferred**: "Based on the import pattern, this likely..."
 - **Uncertain**: "I didn't find explicit configuration for this. Worth asking the team."
 
-Never present everything with equal confidence. A PM who takes uncertain information into a meeting as fact will get burned.
-
----
-
-## Section Library
-
-These are the available sections. Use the ones that fit, skip the rest.
-
-### The Analogy
-
-One paragraph. Anchor the system to something familiar.
-
-> "Think of [system] like [familiar thing]. It [core function explained simply]. Just as [analogy extension], this system [key behavior]."
-
-Good analogies are specific: "airport control tower" (routing), "librarian's desk" (caching), "triage nurse" (prioritization). Bad analogies are vague: "like a pipeline" (everything is a pipeline).
-
-### Architecture Overview
-
-**Mermaid diagram** (renders natively in most wikis, GitHub, GitLab, Notion):
-
-```mermaid
-graph TD
-    subgraph System
-        A[Input Layer] --> B[Core Logic]
-        B --> C[Output Layer]
-        B --> D[(Data Store)]
-    end
-    B --> E[External Dep 1]
-    B --> F[External Dep 2]
-```
-
-Label components with their actual names from the codebase. Show boundaries. Indicate data flow direction.
-
-ASCII diagrams only if the user specifically requests terminal-native output.
-
-### Integration Map
-
-**Use when**: System has 2+ external dependencies or the user cares about failure impact.
-
-**Depends On (Upstream):**
-| System | What It Provides | If It Fails |
-|--------|------------------|-------------|
-| Auth Service | User identity | Requests rejected (401) |
-
-**Feeds Into (Downstream):**
-| System | What It Receives | If It Fails |
-|--------|------------------|-------------|
-| Analytics | Event stream | Metrics delayed, not lost |
-
-### Data Flow
-
-**Use when**: The request path is non-obvious or has critical decision points.
-
-Step-by-step narrative:
-
-```
-1. Request arrives at [entry point]
-2. [Component A] validates [what]
-3. [Component B] decides [what] based on [criteria]  <-- critical decision point
-4. [Component C] executes [action]
-5. Response returns via [path]
-```
-
-Highlight where bugs, misunderstandings, or performance issues tend to concentrate.
-
-### Failure Modes & Edge Cases
-
-**Use when**: System has complex error handling, or user needs to understand operational risk.
-
-| Scenario | What Happens | How It's Handled | User Impact |
-|----------|--------------|------------------|-------------|
-| Database timeout | Query fails | Retry 3x, then error | Customer sees error page |
-| Upstream service down | No auth | Circuit breaker, cached tokens | Degraded experience for ~5min |
-
-**User Impact calibration:**
-- **Transparent**: User never notices (automatic retry, failover works)
-- **Degraded**: Partial functionality, slower response, or fallback experience
-- **Visible**: User sees an error, gets blocked, or needs to retry
-- **Escalation-worthy**: Affects enough users or revenue to require stakeholder communication
-
-### Key Terminology
-
-**Use when**: System uses heavy domain jargon (e.g., "saga", "circuit breaker", "hydration") that will come up in meetings.
-
-| Term | Plain Definition | Why It Matters |
-|------|------------------|----------------|
-| `Term` | What it is in simple language | Why a PM should care |
-
-Keep to 5-10 terms. Only include terms the user will encounter in conversation, not implementation details. If the system has few domain-specific terms, skip this section and define terms inline where they first appear.
-
-### Configuration & Environment
-
-**Use when**: System behavior varies significantly based on configuration (feature flags, environment-specific routing, env vars that change behavior).
-
-| Config | What It Controls | Where It Lives |
-|--------|------------------|----------------|
-| `API_TIMEOUT` | Max wait for upstream calls | `.env` / Kubernetes config |
-| `ENABLE_CACHE` | Toggle caching layer | Feature flag service |
-
-Skip this section for systems with minimal or standard configuration.
-
-### Questions to Ask the Team
-
-Concrete questions tailored to what the exploration revealed. Group by category:
-
-**Architecture**: "What's the p99 latency for [critical path]?"
-**Operations**: "What alerts fire when [failure mode] happens?"
-**Future**: "What are the known limitations we're working around?"
+Keep those confidence levels visible throughout. Define domain terms inline where they first matter.
 
 ---
 
 ## Phase 5: Comprehension Check
 
-After delivering the explanation, proactively offer one scenario question (this is a single quick check, not a quiz. For extended testing, the user can request Phase 7):
+After delivering the explanation, proactively offer one scenario question. Extended active learning starts only when the user requests it:
 
 > "Quick check to make sure my explanation landed: if [specific failure condition from this system], what would happen to [user-facing behavior]?"
 
-This serves two purposes:
-1. Catches gaps in the user's understanding
-2. Catches errors in your explanation (if the user's answer reveals your explanation was wrong, correct it)
-
-If the user engages, follow up with gap identification:
+If the user engages, identify the gap or confirm the model:
 > "You've got [X] solid. The gap I'd focus on is [Y] because [why it matters for their role]."
+
+Stop after this response unless the user asks for active learning. When they ask to be quizzed or tested, continue with this loop:
+
+1. **Teach-Back**: "In one sentence, explain what happens when [scenario]."
+2. **Scenario**: "If [failure condition], what would happen to [user-facing behavior]?"
+3. **Connection**: "How does this relate to [system they know]?"
+4. **Gap ID**: Name the next concept to revisit and why.
+
+End active learning when the user can explain the critical path and one material failure scenario correctly, or asks to stop.
 
 ## Phase 6: Exportable Artifacts
 
-Provide copy-paste ready exports at the end:
+Provide copy-paste exports for artifacts produced by the approved outline. Include only applicable headings:
 
 ```markdown
 ## Exportable Artifacts
@@ -263,30 +186,3 @@ Provide copy-paste ready exports at the end:
 - [ ] Question 1
 - [ ] Question 2
 ```
-
-## Phase 7: Active Learning (On Request)
-
-Only if the user asks: "quiz me", "test my understanding", or "let's do active learning."
-
-**Teach-Back**: "In one sentence, explain what happens when [scenario]."
-**Scenario**: "If [failure condition], what would happen to [user-facing behavior]?"
-**Connection**: "How does this relate to [system they know]?"
-**Gap ID**: "You've got [X] solid. Focus on [Y] because [reason]."
-
----
-
-## Output Quality Standards
-
-**Do:**
-- Reference specific files and line numbers in `filename.ext:lineN` format (e.g., `handler.ts:15`). Always include the filename, even for single-file systems
-- Tailor depth to the user's stated motivation
-- Signal confidence level on every claim
-- Define domain terms inline, on first use, in the section where they matter
-- Keep analogies specific and grounded
-
-**Don't:**
-- Generic explanations that could describe any system
-- Equal confidence on verified facts and inferences
-- Jargon without inline definition
-- Diagrams that don't match the code you actually read
-- Sections that add nothing for this particular system
