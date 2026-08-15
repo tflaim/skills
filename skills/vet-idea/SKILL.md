@@ -1,11 +1,8 @@
 ---
 name: vet-idea
 description: >-
-  Use when the user wants to stress-test an idea before committing to building it.
-  NOT for brainstorming (use brainstorming for divergent exploration).
-  NOT for reviewing finished work (use expert-review).
-  Triggers: "vet this idea", "have I thought this through", "validate my approach",
-  "stress-test this", "poke holes in this", "is this worth building".
+  Stress-test a new direction or an existing spec through a Quick or Deep interview, then capture
+  supported decisions, unresolved questions, and execution guidance.
 ---
 
 Inspired by [Thariq's spec-based workflow](https://x.com/trq212/status/2005315279455142243).
@@ -40,13 +37,15 @@ Your first structured-choice question is always mode selection:
 | Mode | Rounds | Best for |
 |------|--------|----------|
 | **Quick** (Recommended) | 8-12 | Focused features, small changes, well-understood ideas that need documentation |
-| **Deep** | No cap | Complex systems, ambiguous requirements, ideas where you want every assumption challenged |
+| **Deep** | 8+ until saturated | Complex systems, ambiguous requirements, ideas where you want every assumption challenged |
 
 Default to recommending Quick. The user opts into depth.
 
 ## Interview
 
-Walk the decision tree relentlessly one question at a time. Use the environment's structured-choice input capability when available, otherwise present numbered options inline. Mark one option "(Recommended)" first. Explore the codebase before asking anything you could answer yourself. Park unknowns as Open Questions rather than forcing decisions. Reference existing files when relevant so the execution session has them.
+Walk the decision tree relentlessly one question at a time. Use the environment's structured-choice input capability when available, otherwise present numbered options inline. Mark one option "(Recommended)" first. Explore the codebase before asking anything you could answer yourself. Read at most 8-10 files in full and follow at most 3 import hops unless the user requests more; stop when additional exploration no longer changes a question or answer. Park unknowns as Open Questions rather than forcing decisions. Reference existing files when relevant so the execution session has them.
+
+Quick mode is complete after 8-12 rounds when every high-risk dimension surfaced so far is decided, explicitly out of scope, or recorded as an Open Question. Deep mode runs at least 8 rounds and ends only when every surfaced dimension has one of those states and two consecutive answers add no requirement, challenged assumption, risk, or Open Question.
 
 ### Challenger Option — Required
 
@@ -58,9 +57,9 @@ The challenger doesn't have to be contrarian for its own sake. It should be a ge
 
 If the user says "just write the spec" before you think you have enough: **comply immediately**. Write the best spec you can with what you have, but add a prominent `## Under-Explored Areas` section listing what wasn't covered and why it matters.
 
-**Confidence calibration**: Every specific number, threshold, percentage, technology, or library appearing in Requirements must be either (a) directly from user input, (b) inline-flagged with "Suggested:" or "Starting point:" or "(e.g.,...)", or (c) deferred to Open Questions. An invented specific presented as a hard Requirement is the failure mode this rule prevents — a "p95 budget 30s" or "<60s propagation" or "30-day retirement" that wasn't in the user input does not belong in Requirements unmarked.
-
 ## Write the Spec
+
+**Confidence calibration**: Every specific number, threshold, percentage, technology, or library appearing in Requirements must be either (a) directly from user input, (b) inline-flagged with "Suggested:" or "Starting point:" or "(e.g.,...)", or (c) deferred to Open Questions. An invented specific presented as a hard Requirement is the failure mode this rule prevents — a "p95 budget 30s" or "<60s propagation" or "30-day retirement" that wasn't in the user input does not belong in Requirements unmarked.
 
 ### Template — Core Skeleton + Dynamic Sections
 
@@ -99,7 +98,7 @@ budget is 30s)."]
 - Under-Explored Areas (if early termination)
 - Any other domain-specific sections that emerged naturally
 
-Do NOT include empty sections. If a dimension wasn't relevant, omit it.
+Include only sections supported by relevant interview content.
 
 ## Save and Offer Next Steps
 

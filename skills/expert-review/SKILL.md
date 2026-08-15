@@ -1,10 +1,8 @@
 ---
 name: expert-review
 description: >-
-  Invoke a domain expert persona to critically review specs, code, architecture, copy,
-  plans, or prompts. Supports user-specified, auto-selected, or multi-persona modes.
-  Triggers: "expert review", "review this as a [role]", "get a second opinion",
-  "critique this", "what would an expert think".
+  Expert-review an artifact through a user-named specialist, an auto-selected specialist, or a small
+  cross-domain panel. Use for consequential critique of specs, code, architecture, copy, plans, or prompts.
 ---
 
 # Expert Review
@@ -31,7 +29,7 @@ When selecting: a prompt doesn't necessarily need a prompt engineer — it might
 
 ### Structure
 
-Don't follow a rigid template — let the review flow naturally like a real expert giving feedback. But hit these beats:
+Use flexible prose while covering every applicable beat:
 
 1. **Gut reaction** (1-2 sentences) — Your immediate expert read. What stands out? What's your instinct?
 
@@ -41,6 +39,8 @@ Don't follow a rigid template — let the review flow naturally like a real expe
    - What's wrong
    - Why it matters (consequence, not just opinion)
    - What you'd do instead (concrete, not hand-wavy — never end an item with a question or observation. Always close with a specific, actionable recommendation. "Here's what I'd do" not "here are some questions to consider.")
+
+   This beat is complete when every material weakness found is documented with evidence, consequence, and a concrete recommendation.
 
 4. **What's missing** — Things the author didn't think of that the expert would know to include. Blind spots, edge cases, industry context. When reviewing a system that changes how information flows, ask who else is affected beyond the primary user. Systems have producers and consumers, senders and receivers, operators and customers. The spec usually optimizes for one. Your job is to ask about the others.
 
