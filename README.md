@@ -36,6 +36,7 @@ DISABLE_TELEMETRY=1 npx skills@latest add tflaim/skills
 | --- | --- |
 | [baton](#baton) | Hands live work to a fresh agent session without losing state |
 | [deslop](#deslop) | Strips AI writing patterns while preserving the author's voice |
+| [eli5](#eli5) | Explains complex ideas plainly, like a smart coworker |
 | [expert-review](#expert-review) | Brings in the expert most likely to catch consequential mistakes |
 | [explain-system](#explain-system) | Builds a verified mental model of a technical system |
 | [pr-preflight](#pr-preflight) | Checks repository readiness before work leaves the machine |
@@ -73,6 +74,18 @@ Deslop calibrates casual, professional, and formal registers; respects project s
 - Someone says, "This sounds like AI"
 
 **Example trigger:** Ask your agent to "humanize this" or "deslop this text."
+
+---
+
+### eli5
+
+Explains dense answers and unfamiliar topics in plain, conversational language. It preserves the meaning and facts while making the explanation sound like a smart coworker helping you get unstuck.
+
+**When to use:**
+
+- A technical answer is correct but hard to follow
+- You want the short version without losing important detail
+- You want an explanation that sounds human instead of textbook-like
 
 ---
 

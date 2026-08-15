@@ -12,14 +12,14 @@ from pathlib import Path
 
 
 EXPECTED = {
-    "baton", "deslop", "expert-review", "explain-system", "pr-preflight",
+    "baton", "deslop", "eli5", "expert-review", "explain-system", "pr-preflight",
     "pr-review-feedback", "skill-forge", "skill-grinder", "vet-idea",
 }
 GROUPS = {
     "Software delivery": ["pr-preflight", "pr-review-feedback"],
     "Thinking and review": ["vet-idea", "expert-review", "explain-system"],
     "Agent operations": ["baton", "skill-grinder", "skill-forge"],
-    "Writing": ["deslop"],
+    "Writing": ["deslop", "eli5"],
 }
 TEXT_SUFFIXES = {".md", ".yaml", ".yml", ".json", ".py", ".txt"}
 FORBIDDEN_TEXT = {

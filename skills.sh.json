@@ -19,8 +19,8 @@
     },
     {
       "title": "Writing",
-      "description": "Edit AI-sounding prose into direct, audience-appropriate writing.",
-      "skills": ["deslop"]
+      "description": "Make writing and explanations clearer, more human, and audience-appropriate.",
+      "skills": ["deslop", "eli5"]
     }
   ]
 }
