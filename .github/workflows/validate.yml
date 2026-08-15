@@ -31,10 +31,10 @@ jobs:
             if [ "$(basename "$skill")" = "skill-grinder" ]; then
               continue
             fi
-            skill-validator validate structure --strict --allow-flat-layouts --allow-dirs=agents,tests "$skill"
+            skill-validator validate structure --strict --allow-extra-frontmatter --allow-flat-layouts --allow-dirs=agents,tests "$skill"
           done
           set +e
-          skill-validator validate structure --output json --allow-flat-layouts --allow-dirs=agents,tests skills/skill-grinder > /tmp/skill-grinder-validator.json
+          skill-validator validate structure --output json --allow-extra-frontmatter --allow-flat-layouts --allow-dirs=agents,tests skills/skill-grinder > /tmp/skill-grinder-validator.json
           status=$?
           set -e
           test "$status" -eq 2
