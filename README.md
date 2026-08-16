@@ -24,12 +24,6 @@ Install globally instead of in the current project:
 npx skills@latest add tflaim/skills -g
 ```
 
-The skills CLI collects anonymous installation telemetry by default. To opt out:
-
-```bash
-DISABLE_TELEMETRY=1 npx skills@latest add tflaim/skills
-```
-
 ## At a glance
 
 | Skill | What it does |
@@ -211,4 +205,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT. The `deslop` skill retains its attributed MIT license.
+MIT
