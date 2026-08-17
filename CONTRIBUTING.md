@@ -5,7 +5,7 @@ Contributions should remain portable, focused, and independently verifiable.
 ## Add or change a skill
 
 1. Create or edit a lower-case, hyphenated directory under skills.
-2. Include SKILL.md with a matching name and a description that explains when the skill should trigger.
+2. Include SKILL.md with a matching name and a description that explains when the skill should trigger. For a manual-only skill, set `disable-model-invocation: true` and add `policy.allow_implicit_invocation: false` to its Codex adapter.
 3. Keep SKILL.md under 500 lines. Put supplementary guidance in references and executable utilities in scripts.
 4. If the skill needs Codex-specific UI metadata, put it in agents/openai.yaml using the interface mapping.
 5. Reference every bundled file from SKILL.md or explain why it is development-only.

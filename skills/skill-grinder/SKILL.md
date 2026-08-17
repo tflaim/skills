@@ -4,6 +4,7 @@ description: >-
   Grind an existing skill through an autonomous mutation loop when repeated failures need broader
   search. Route pure generators to direct evaluation, artifact-producing workflows to stable-artifact
   evaluation, and purely interactive workflows to expert review.
+disable-model-invocation: true
 ---
 # Autoresearch for Skills
 

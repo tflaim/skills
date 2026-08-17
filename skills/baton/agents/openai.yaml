@@ -1,0 +1,6 @@
+interface:
+  display_name: "Baton"
+  short_description: "Prepare a durable cross-agent handoff"
+  default_prompt: "Use $baton to prepare this task for a fresh agent session."
+policy:
+  allow_implicit_invocation: false

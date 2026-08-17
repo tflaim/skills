@@ -1,0 +1,6 @@
+interface:
+  display_name: "Expert Review"
+  short_description: "Critique consequential work with domain expertise"
+  default_prompt: "Use $expert-review to challenge this artifact and recommend concrete fixes."
+policy:
+  allow_implicit_invocation: false

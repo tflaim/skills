@@ -47,6 +47,7 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
+          python3 -m unittest discover -s tests -v
           python3 -m unittest discover -s skills/skill-grinder/tests -v
           python3 -m unittest discover -s skills/skill-forge/tests -v
 
