@@ -15,6 +15,9 @@ EXPECTED = {
     "baton", "deslop", "eli5", "expert-review", "explain-system", "pr-preflight",
     "pr-review-feedback", "skill-forge", "skill-grinder", "vet-idea",
 }
+USER_INVOKED = {
+    "baton", "eli5", "expert-review", "skill-forge", "skill-grinder", "vet-idea",
+}
 GROUPS = {
     "Software delivery": ["pr-preflight", "pr-review-feedback"],
     "Thinking and review": ["vet-idea", "expert-review", "explain-system"],
@@ -56,8 +59,76 @@ def parse_frontmatter(path: Path) -> dict[str, str]:
     for line in text[4:end].splitlines():
         match = re.match(r"^([a-zA-Z0-9_-]+):\s*(.*)$", line)
         if match:
-            fields[match.group(1)] = match.group(2).strip()
+            key = match.group(1)
+            if key in fields:
+                fail(f"{path}: duplicate frontmatter key: {key}")
+            fields[key] = match.group(2).strip()
+            continue
+        if line.startswith((" ", "\t")) or not line.strip() or line.startswith("#"):
+            continue
+        equivalent_key = re.match(
+            r"^(?:[a-zA-Z0-9_-]+|\"[^\"]+\"|'[^']+')\s*:",
+            line,
+        )
+        explicit_key = re.match(r"^\?\s+", line)
+        if equivalent_key or explicit_key:
+            fail(f"{path}: frontmatter keys must use canonical unquoted 'key:' syntax")
+        fail(f"{path}: unsupported frontmatter syntax: {line}")
     return fields
+
+
+def parse_openai_implicit_invocation(path: Path) -> bool | None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    policy_lines: list[int] = []
+    for index, line in enumerate(lines):
+        if line.startswith((" ", "\t")):
+            continue
+        match = re.match(r"^(?:policy|\"policy\"|'policy')\s*:", line)
+        if match:
+            if line != "policy:":
+                fail(f"{path}: policy key must use the canonical 'policy:' form")
+            policy_lines.append(index)
+        elif re.match(r"^\?\s+(?:policy|\"policy\"|'policy')\b", line):
+            fail(f"{path}: policy key must use the canonical 'policy:' form")
+    if not policy_lines:
+        return None
+    if len(policy_lines) != 1:
+        fail(f"{path}: expected at most one policy block")
+
+    values: list[bool] = []
+    for line in lines[policy_lines[0] + 1:]:
+        if line and not line[0].isspace():
+            break
+        match = re.fullmatch(r"  allow_implicit_invocation: (true|false)", line)
+        if match:
+            values.append(match.group(1) == "true")
+            continue
+        equivalent_key = re.match(
+            r"^\s+(?:allow_implicit_invocation|\"allow_implicit_invocation\"|"
+            r"'allow_implicit_invocation')\s*:",
+            line,
+        )
+        explicit_key = re.match(
+            r"^\s+\?\s+(?:allow_implicit_invocation|\"allow_implicit_invocation\"|"
+            r"'allow_implicit_invocation')\b",
+            line,
+        )
+        if equivalent_key or explicit_key:
+            fail(
+                f"{path}: allow_implicit_invocation must use the canonical "
+                "'  allow_implicit_invocation: true|false' form"
+            )
+    if len(values) != 1:
+        fail(f"{path}: policy must define allow_implicit_invocation exactly once")
+    return values[0]
+
+
+def validate_openai_invocation(name: str, path: Path) -> None:
+    allow_implicit = parse_openai_implicit_invocation(path)
+    if name in USER_INVOKED and allow_implicit is not False:
+        fail(f"{path}: user-invoked skill must disable implicit invocation")
+    if name not in USER_INVOKED and allow_implicit is False:
+        fail(f"{path}: model-invoked skill must not disable implicit invocation")
 
 
 def validate_static(root: Path) -> None:
@@ -80,6 +151,11 @@ def validate_static(root: Path) -> None:
             fail(f"{directory}: frontmatter name must match directory")
         if not fields.get("description"):
             fail(f"{directory}: missing frontmatter description")
+        disabled = fields.get("disable-model-invocation")
+        if name in USER_INVOKED and disabled != "true":
+            fail(f"{directory}: user-invoked skill must set disable-model-invocation: true")
+        if name not in USER_INVOKED and disabled is not None:
+            fail(f"{directory}: model-invoked skill must omit disable-model-invocation")
         metadata = directory / "agents" / "openai.yaml"
         if metadata.exists():
             metadata_text = metadata.read_text(encoding="utf-8")
@@ -88,6 +164,9 @@ def validate_static(root: Path) -> None:
             for key in ("display_name:", "short_description:", "default_prompt:"):
                 if key not in metadata_text:
                     fail(f"{metadata}: missing {key}")
+            validate_openai_invocation(name, metadata)
+        elif name in USER_INVOKED:
+            fail(f"{directory}: user-invoked skill must include agents/openai.yaml")
 
     for path in root.rglob("*"):
         if ".git" in path.parts:

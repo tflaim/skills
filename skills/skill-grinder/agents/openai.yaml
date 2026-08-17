@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Grinder"
+  short_description: "Run evidence-tracked skill mutation loops"
+  default_prompt: "Use $skill-grinder to optimize this skill through a bounded mutation loop."
+policy:
+  allow_implicit_invocation: false

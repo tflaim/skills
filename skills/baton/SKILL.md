@@ -3,6 +3,7 @@ name: baton
 description: >-
   Baton-pass active work to a fresh session when context is bloated or a task must move between
   agents. Adapt the state-transfer document to a named target, or write it tool-agnostically.
+disable-model-invocation: true
 ---
 You are writing a **state-transfer document**, not a conversation summary. The receiver needs to *act*, not reconstruct what happened.
 

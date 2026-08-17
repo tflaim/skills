@@ -3,6 +3,7 @@ name: vet-idea
 description: >-
   Stress-test a new direction or an existing spec through a Quick or Deep interview, then capture
   supported decisions, unresolved questions, and execution guidance.
+disable-model-invocation: true
 ---
 
 Inspired by [Thariq's spec-based workflow](https://x.com/trq212/status/2005315279455142243).

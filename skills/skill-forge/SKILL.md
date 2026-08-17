@@ -1,6 +1,7 @@
 ---
 name: skill-forge
 description: Forge an existing skill through bounded quality, compression, or exploratory mutations; accept changes only when the selected mode's held-out evidence gate passes.
+disable-model-invocation: true
 ---
 
 # Skill Forge

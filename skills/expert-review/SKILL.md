@@ -3,6 +3,7 @@ name: expert-review
 description: >-
   Expert-review an artifact through a user-named specialist, an auto-selected specialist, or a small
   cross-domain panel. Use for consequential critique of specs, code, architecture, copy, plans, or prompts.
+disable-model-invocation: true
 ---
 
 # Expert Review

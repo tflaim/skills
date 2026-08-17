@@ -2,3 +2,5 @@ interface:
   display_name: "ELI5"
   short_description: "Make complex ideas obvious, not childish"
   default_prompt: "Use $eli5 to explain this clearly without dumbing it down."
+policy:
+  allow_implicit_invocation: false
